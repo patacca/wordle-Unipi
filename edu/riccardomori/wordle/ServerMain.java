@@ -19,7 +19,7 @@ public class ServerMain {
         try {
             ServerMain.loadConfig();
         } catch (Exception e) {
-            System.err.format("Error while reading the configuration file '%s'", ServerMain.configFile);
+            System.err.format("Error while reading the configuration file '%s'\n", ServerMain.configFile);
             System.exit(1);
         }
 
