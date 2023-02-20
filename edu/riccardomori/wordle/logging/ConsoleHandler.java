@@ -4,10 +4,10 @@ import java.util.logging.LogRecord;
 import java.util.logging.SimpleFormatter;
 import java.util.logging.StreamHandler;
 
+/**
+ * A modified ConsoleHandler that publishes records to System.out
+ */
 public class ConsoleHandler extends StreamHandler {
-    /**
-     * Create a ConsoleHandler that publishes records to System.out
-     */
     public ConsoleHandler() {
         super(System.out, new SimpleFormatter());
     }
