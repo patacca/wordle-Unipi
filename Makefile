@@ -15,7 +15,9 @@ jar: all
 	jar -c -v -m META-INF/MANIFEST.MF -f wordle.jar $$(find $(PROJECT_PATH) -name '*.class')
 
 all: $(PROJECT_PATH)/ServerMain.class $(PROJECT_PATH)/WordleServer.class \
-	$(PROJECT_PATH)/logging/ConsoleHandler.class
+	$(PROJECT_PATH)/logging/ConsoleHandler.class $(PROJECT_PATH)/Action.class \
+	$(PROJECT_PATH)/Action.class $(PROJECT_PATH)/WordleServerCore.class \
+	$(PROJECT_PATH)/ClientState.java
 
 clean:
 	rm -f wordle.jar
