@@ -2,46 +2,169 @@ package edu.riccardomori.wordle;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.StandardSocketOptions;
+import java.nio.ByteBuffer;
+import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
-import java.util.logging.Level;
+import java.nio.channels.SocketChannel;
+import java.util.Iterator;
+import java.util.Set;
 import java.util.logging.Logger;
-
-import edu.riccardomori.wordle.logging.ConsoleHandler;
 
 /**
  * This is the main server class. It handles all the incoming connections with
- * non-blocking channels
+ * non-blocking channels. It also handles the generation of the secret word
  */
 public class WordleServer {
     private int port; // The port of the server socket
     private Logger logger;
+    private int socketBufferCapacity = 1024; // Size of the buffer for each socket read
+
+    /**
+     * Private static class that is used to describe the state of a client
+     * connection.
+     */
+    private static class ConnectionState {
+        public WordleServerCore backend; // The backend object that handles the actions
+        public ByteBuffer readBuffer; // Buffer used for reading
+        public ByteBuffer writeBuffer; // Buffer used for writing
+
+        // The size of the application message that needs to be read
+        // If it is set to -1 it means that the message size is still unknown
+        public int readMessageSize = -1;
+
+        public ConnectionState(WordleServerCore backend, int readCapacity, int writeCapacity) {
+            this.backend = backend;
+            this.readBuffer = ByteBuffer.allocate(readCapacity);
+            this.writeBuffer = ByteBuffer.allocate(writeCapacity);
+        }
+
+        /**
+         * Completes the reading phase. It returns a copy of the ByteBuffer that
+         * contains the data read, then it resets both readBuffer and readMessageSize
+         */
+        public ByteBuffer finishRead() {
+            ByteBuffer retBuff = ByteBuffer.wrap(this.readBuffer.array().clone());
+            this.readBuffer.clear();
+            this.readMessageSize = -1;
+
+            return retBuff;
+        }
+    }
 
     public WordleServer(int port) {
         this.port = port;
         this.logger = Logger.getLogger("Wordle");
-
-        // MOVE ALL OF THIS
-        System.setProperty("java.util.logging.SimpleFormatter.format", "%1$tb %1$td, %1$tY %1$tH:%1$tM:%1$tS %4$s: %5$s%6$s%n");
-        this.logger.addHandler(new ConsoleHandler());
-        this.logger.setUseParentHandlers(false);
-        this.logger.setLevel(Level.ALL); // to be moved
-
-        // Initialize the state
     }
 
     /**
-     * Run the server.
+     * The server main loop where it performs the multiplexing of the channels.
      */
     public void run() {
-        // Init server socket and listen on port `this.port`
         try (ServerSocketChannel socket = ServerSocketChannel.open(); Selector selector = Selector.open()) {
+            // Init server socket and listen on port `this.port`
             socket.bind(new InetSocketAddress(this.port));
             socket.configureBlocking(false);
             this.logger.info(String.format("Listening on port %d", this.port));
+
+            // register the selector
+            socket.register(selector, SelectionKey.OP_ACCEPT);
+
+            // Main selector loop
+            while (true) {
+                selector.select();
+                Set<SelectionKey> selectedKeys = selector.selectedKeys();
+                Iterator<SelectionKey> iter = selectedKeys.iterator();
+                while (iter.hasNext()) {
+                    SelectionKey key = iter.next();
+
+                    if (!key.isValid())
+                        this.logger.warning("KEY NOT VALID!");
+
+                    if (key.isAcceptable()) {
+                        // Handle new connection
+                        this.handleNewConnection(socket, selector);
+                    } else if (key.isReadable()) {
+                        this.handleRead(key, selector);
+                    }
+
+                    iter.remove();
+                }
+            }
         } catch (IOException e) {
             e.printStackTrace();
             System.exit(1);
         }
+    }
+
+    /**
+     * Handles a new incoming connection. It initializes the object WordleServerCore
+     * for that client and register the channel to the selector
+     * 
+     * @param serverSocket The server socket channel
+     * @param selector     The selector where to register the new socket channel
+     * @throws IOException
+     */
+    private void handleNewConnection(ServerSocketChannel serverSocket, Selector selector) throws IOException {
+        // Accept the new connection
+        SocketChannel socket = serverSocket.accept();
+        this.logger.fine("New connection received");
+        socket.configureBlocking(false);
+        // Set TCP Keep Alive mode
+        socket.setOption(StandardSocketOptions.SO_KEEPALIVE, true);
+
+        WordleServerCore serverBackend = new WordleServerCore();
+        int interestOps = serverBackend.getInterestOps();
+
+        socket.register(selector, interestOps,
+                new ConnectionState(serverBackend, this.socketBufferCapacity, this.socketBufferCapacity));
+    }
+
+    /**
+     * Handles reading a message from the socket. All the messages must be in the
+     * format:
+     * [SIZE] [MESSAGE]
+     * 
+     * The SIZE is always the size of a Integer (4 bytes) and it's using big endian
+     * byte ordering.
+     * 
+     * @param key      The selection key
+     * @param selector The selector
+     * @throws IOException
+     */
+    private void handleRead(SelectionKey key, Selector selector) throws IOException {
+        SocketChannel socket = (SocketChannel) key.channel();
+        ConnectionState state = (ConnectionState) key.attachment();
+
+        // Read data from the socket
+        int nRead = socket.read(state.readBuffer);
+        // Connection closed by client
+        if (nRead < 0) {
+            this.logger.finer("Connection closed");
+            socket.close();
+            return;
+        }
+        int size = state.readBuffer.position();
+
+        // Read the message size
+        if (state.readMessageSize == -1) {
+            if (size < Integer.BYTES) // Not enough bytes have been read
+                return;
+            state.readBuffer.flip();
+            state.readMessageSize = state.readBuffer.getInt();
+            state.readBuffer.compact();
+
+            // Update the size of the buffer
+            size = state.readBuffer.position();
+        }
+
+        // Here we know the app message size
+        this.logger.fine(String.format("Needs to receive a message of size %d bytes", state.readMessageSize));
+
+        if (size < state.readMessageSize) // Not enough bytes
+            return;
+
+        state.backend.readMessage(state.finishRead());
     }
 }
