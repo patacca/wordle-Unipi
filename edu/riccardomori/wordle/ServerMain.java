@@ -25,7 +25,8 @@ public class ServerMain {
         try {
             ServerMain.loadConfig();
         } catch (Exception e) {
-            System.err.format("Error while reading the configuration file '%s'\n", ServerMain.configFile);
+            System.err.format("Error while reading the configuration file '%s'\n",
+                    ServerMain.configFile);
             System.exit(1);
         }
 
@@ -73,7 +74,7 @@ public class ServerMain {
      * Read the configuration file
      * 
      * @throws FileNotFoundException if the configuration file is not found
-     * @throws IOException           if there is an error while reading the file
+     * @throws IOException if there is an error while reading the file
      */
     private static void loadConfig() throws FileNotFoundException, IOException {
         InputStream input = new FileInputStream(ServerMain.configFile);

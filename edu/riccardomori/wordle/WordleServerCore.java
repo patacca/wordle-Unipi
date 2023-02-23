@@ -20,13 +20,12 @@ public class WordleServerCore {
     }
 
     /**
-     * Read the message provided in the buffer as data coming from the client.
-     * It then performs the actions required considering the current state of the
-     * server.
-     * Note that the message **must** always be complete. A partial message results
-     * in undefined behavior.
+     * Read the message provided in the buffer as data coming from the client. It then performs the
+     * actions required considering the current state of the server. Note that the message **must**
+     * always be complete. A partial message results in undefined behavior.
      * 
-     * @param buffer The buffer containing the message coming from the client. It must be ready to be read
+     * @param buffer The buffer containing the message coming from the client. It must be ready to
+     *        be read
      * @return The interest set of operations
      */
     public int readMessage(ByteBuffer buffer) {
@@ -35,8 +34,19 @@ public class WordleServerCore {
             if (action == Action.UNKNOWN) {
                 this.logger.info("Action Unknown");
             }
+
             if (action == Action.LOGIN) {
                 this.logger.info("Action Login");
+                String username = "user";
+                String password = "pass";
+
+                if (WordleServer.getInstance().checkLogin(username, password)) {
+                    this.logger.finer(String.format("User `%s` logged in", username));
+                    this.state = ClientState.LOGGED;
+                } else {
+                    this.logger
+                            .finer(String.format("Authentication of user `%s` rejected", username));
+                }
             }
         }
         return this.interestOps;
