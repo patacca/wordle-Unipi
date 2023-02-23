@@ -62,7 +62,8 @@ public class ServerMain {
         logger.setLevel(Level.ALL);
 
         // Initialize Server
-        WordleServer server = new WordleServer(ServerMain.port);
+        WordleServer server = WordleServer.getInstance();
+        server.configure(ServerMain.port);
 
         // Run the server
         server.run();

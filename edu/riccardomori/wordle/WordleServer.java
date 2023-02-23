@@ -14,9 +14,14 @@ import java.util.logging.Logger;
 
 /**
  * This is the main server class. It handles all the incoming connections with
- * non-blocking channels. It also handles the generation of the secret word
+ * non-blocking channels. It also handles the generation of the secret word and
+ * the authentication of a pair (user, password).
+ * It is a singleton class.
  */
-public class WordleServer {
+public final class WordleServer {
+    private static WordleServer instance; // Singleton instance
+
+    private boolean isConfigured = false; // Flag that forbids running the server if previously it was not configured
     private int port; // The port of the server socket
     private Logger logger;
     private int socketBufferCapacity = 1024; // Size of the buffer for each socket read
@@ -26,7 +31,7 @@ public class WordleServer {
      * connection.
      */
     private static class ConnectionState {
-        public WordleServerCore backend; // The backend object that handles the actions
+        public WordleServerCore backend; // The backend object that handles the interaction with the client
         public ByteBuffer readBuffer; // Buffer used for reading
         public ByteBuffer writeBuffer; // Buffer used for writing
 
@@ -53,15 +58,35 @@ public class WordleServer {
         }
     }
 
-    public WordleServer(int port) {
-        this.port = port;
+    private WordleServer() {
         this.logger = Logger.getLogger("Wordle");
+    }
+
+    public static WordleServer getInstance() {
+        if (WordleServer.instance == null)
+            WordleServer.instance = new WordleServer();
+        return WordleServer.instance;
+    }
+
+    /**
+     * Configure the server.
+     * 
+     * @param port // The port for the server socket
+     */
+    public void configure(int port) {
+        this.port = port;
+        this.isConfigured = true;
     }
 
     /**
      * The server main loop where it performs the multiplexing of the channels.
+     * The server must be previously configured by calling WotdleServer.configure()
      */
     public void run() {
+        // Check that all the parameters were configured
+        if (!this.isConfigured)
+            throw new RuntimeException("The server must be configured before running.");
+
         try (ServerSocketChannel socket = ServerSocketChannel.open(); Selector selector = Selector.open()) {
             // Init server socket and listen on port `this.port`
             socket.bind(new InetSocketAddress(this.port));
@@ -126,8 +151,8 @@ public class WordleServer {
      * format:
      * [SIZE] [MESSAGE]
      * 
-     * The SIZE is always the size of a Integer (4 bytes) and it's using big endian
-     * byte ordering.
+     * SIZE is always the size of a Integer (4 bytes) and it's encoded in big endian
+     * SIZE represents the actual size of MESSAGE.
      * 
      * @param key      The selection key
      * @param selector The selector
