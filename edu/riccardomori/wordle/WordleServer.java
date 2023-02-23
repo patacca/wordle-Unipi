@@ -21,15 +21,15 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 
 /**
- * This is the main server class. It handles all the incoming connections with
- * non-blocking channels. It also handles the generation of the secret word and
- * the authentication of a pair (user, password).
- * It is a singleton class.
+ * This is the main server class. It handles all the incoming connections with non-blocking
+ * channels. It also handles the generation of the secret word and the authentication of a pair
+ * (user, password). It is a singleton class.
  */
 public final class WordleServer {
     private static WordleServer instance; // Singleton instance
 
-    private boolean isConfigured = false; // Flag that forbids running the server if previously it was not configured
+    private boolean isConfigured = false; // Flag that forbids running the server if previously it
+                                          // was not configured
     private int port; // The port of the server socket
     private Logger logger;
     private int socketBufferCapacity = 1024; // Size of the buffer for each socket read
@@ -39,11 +39,11 @@ public final class WordleServer {
     private Map<String, String> users;
 
     /**
-     * Private static class that is used to describe the state of a client
-     * connection.
+     * Private static class that is used to describe the state of a client connection.
      */
     private static class ConnectionState {
-        public WordleServerCore backend; // The backend object that handles the interaction with the client
+        public WordleServerCore backend; // The backend object that handles the interaction with the
+                                         // client
         public ByteBuffer readBuffer; // Buffer used for reading
         public ByteBuffer writeBuffer; // Buffer used for writing
 
@@ -58,8 +58,8 @@ public final class WordleServer {
         }
 
         /**
-         * Completes the reading phase. It returns a copy of the ByteBuffer that
-         * contains the data read, then it resets both readBuffer and readMessageSize
+         * Completes the reading phase. It returns a copy of the ByteBuffer that contains the data
+         * read, then it resets both readBuffer and readMessageSize
          */
         public ByteBuffer finishRead() {
             ByteBuffer retBuff = ByteBuffer.wrap(this.readBuffer.array().clone());
@@ -166,14 +166,15 @@ public final class WordleServer {
     }
 
     /**
-     * Handles a new incoming connection. It initializes the object WordleServerCore
-     * for that client and register the channel to the selector
+     * Handles a new incoming connection. It initializes the object WordleServerCore for that client
+     * and register the channel to the selector
      * 
      * @param serverSocket The server socket channel
-     * @param selector     The selector where to register the new socket channel
+     * @param selector The selector where to register the new socket channel
      * @throws IOException
      */
-    private void handleNewConnection(ServerSocketChannel serverSocket, Selector selector) throws IOException {
+    private void handleNewConnection(ServerSocketChannel serverSocket, Selector selector)
+            throws IOException {
         // Accept the new connection
         SocketChannel socket = serverSocket.accept();
         this.logger.fine("New connection received");
@@ -184,22 +185,23 @@ public final class WordleServer {
         WordleServerCore serverBackend = new WordleServerCore();
         int interestOps = serverBackend.getInterestOps();
 
-        socket.register(selector, interestOps,
-                new ConnectionState(serverBackend, this.socketBufferCapacity, this.socketBufferCapacity));
+        socket.register(selector, interestOps, new ConnectionState(serverBackend,
+                this.socketBufferCapacity, this.socketBufferCapacity));
     }
 
+    // @formatter:off
     /**
-     * Handles reading a message from the socket. All the messages must be in the
-     * format:
-     * [SIZE] [MESSAGE]
+     * Handles reading a message from the socket. All the messages must be in the format:
+     *      [SIZE] [MESSAGE]
      * 
-     * SIZE is always the size of a Integer (4 bytes) and it's encoded in big endian
-     * SIZE represents the actual size of MESSAGE.
+     * SIZE is always the size of a Integer (4 bytes) and it's encoded in big endian SIZE represents
+     * the actual size of MESSAGE.
      * 
-     * @param key      The selection key
+     * @param key The selection key
      * @param selector The selector
      * @throws IOException
      */
+    // @formatter:on
     private void handleRead(SelectionKey key, Selector selector) throws IOException {
         SocketChannel socket = (SocketChannel) key.channel();
         ConnectionState state = (ConnectionState) key.attachment();
@@ -227,7 +229,8 @@ public final class WordleServer {
         }
 
         // Here we know the app message size
-        this.logger.fine(String.format("Needs to receive a message of size %d bytes", state.readMessageSize));
+        this.logger.fine(String.format("Needs to receive a message of size %d bytes",
+                state.readMessageSize));
 
         if (size < state.readMessageSize) // Not enough bytes
             return;

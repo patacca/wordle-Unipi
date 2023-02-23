@@ -22,8 +22,7 @@ public class ConsoleHandler extends StreamHandler {
     }
 
     /**
-     * Override StreamHandler.close to do a flush but not to close the output
-     * stream.
+     * Override StreamHandler.close to do a flush but not to close the output stream.
      */
     @Override
     public void close() {

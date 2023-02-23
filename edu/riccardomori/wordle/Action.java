@@ -1,8 +1,7 @@
 package edu.riccardomori.wordle;
 
 public enum Action {
-    LOGIN((byte) 0),
-    UNKNOWN((byte)0xff);
+    LOGIN((byte) 0), UNKNOWN((byte) 0xff);
 
     private final byte value;
 
