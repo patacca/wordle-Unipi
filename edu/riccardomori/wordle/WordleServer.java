@@ -1,5 +1,8 @@
 package edu.riccardomori.wordle;
 
+import java.io.BufferedReader;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.StandardSocketOptions;
@@ -8,9 +11,14 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
+
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 
 /**
  * This is the main server class. It handles all the incoming connections with
@@ -25,6 +33,10 @@ public final class WordleServer {
     private int port; // The port of the server socket
     private Logger logger;
     private int socketBufferCapacity = 1024; // Size of the buffer for each socket read
+
+    private static final String userDbFile = "users.json";
+
+    private Map<String, String> users;
 
     /**
      * Private static class that is used to describe the state of a client
@@ -79,15 +91,45 @@ public final class WordleServer {
     }
 
     /**
-     * The server main loop where it performs the multiplexing of the channels.
-     * The server must be previously configured by calling WotdleServer.configure()
+     * Load the users from the database
+     */
+    private void loadUsers() {
+        try {
+            Gson gson = new Gson();
+            TypeToken<Map<String, String>> type = new TypeToken<Map<String, String>>() {};
+            this.users = gson.fromJson(new BufferedReader(new FileReader(this.userDbFile)), type);
+        } catch (FileNotFoundException e) {
+            this.logger.info("User database not found");
+            this.users = new HashMap<>();
+        }
+    }
+
+    /**
+     * Check if the pair (username, password) correctly identifies a real user. If the pair is not
+     * found in the user database then returns false
+     * 
+     * @param username The username
+     * @param password The password
+     * @return Whether the pair (username, password) is valid
+     */
+    public boolean checkLogin(String username, String password) {
+        return (username == "user" && password == "pass");
+    }
+
+    /**
+     * The server main loop where it performs the multiplexing of the channels. The server must be
+     * previously configured by calling WotdleServer.configure()
      */
     public void run() {
         // Check that all the parameters were configured
         if (!this.isConfigured)
             throw new RuntimeException("The server must be configured before running.");
 
-        try (ServerSocketChannel socket = ServerSocketChannel.open(); Selector selector = Selector.open()) {
+        // Load the users database
+        this.loadUsers();
+
+        try (ServerSocketChannel socket = ServerSocketChannel.open();
+                Selector selector = Selector.open()) {
             // Init server socket and listen on port `this.port`
             socket.bind(new InetSocketAddress(this.port));
             socket.configureBlocking(false);
