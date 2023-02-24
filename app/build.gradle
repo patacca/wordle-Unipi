@@ -43,7 +43,29 @@ jar {
     }
 }
 
+task clientJar(type: Jar) {
+    archiveBaseName = 'client'
+    manifest {
+        attributes 'Main-Class': 'edu.riccardomori.wordle.client.ClientMain'
+    }
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+    from sourceSets.main.output
+}
+
+task serverJar(type: Jar) {
+    archiveBaseName = 'server'
+    manifest {
+        attributes 'Main-Class': 'edu.riccardomori.wordle.server.ServerMain'
+    }
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+    from sourceSets.main.output
+}
+
 application {
     // Define the main class for the application.
-    mainClass = 'edu.riccardomori.wordle.ServerMain'
+    mainClass = 'edu.riccardomori.wordle.server.ServerMain'
 }
