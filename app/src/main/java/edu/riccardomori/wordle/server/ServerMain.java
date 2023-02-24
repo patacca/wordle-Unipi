@@ -1,4 +1,4 @@
-package edu.riccardomori.wordle;
+package edu.riccardomori.wordle.server;
 
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;

@@ -1,4 +1,4 @@
-package edu.riccardomori.wordle;
+package edu.riccardomori.wordle.server;
 
 import java.rmi.Remote;
 import java.rmi.RemoteException;
