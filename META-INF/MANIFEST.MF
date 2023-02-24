@@ -1,3 +1,4 @@
 Manifest-Version: 1.0
 Main-Class: edu.riccardomori.wordle.ServerMain
+Class-Path: lib/gson-2.10.1.jar
 Created-By: 11.0.3 (Oracle Corporation)

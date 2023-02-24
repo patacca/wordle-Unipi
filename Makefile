@@ -1,24 +1,35 @@
+BASE_PATH := ./app/src/main/java
+PKG_PATH := edu/riccardomori/wordle
+PROJECT_PATH := $(BASE_PATH)/$(PKG_PATH)
+BUILD_PATH := ./build
+BUILD_FULL_PATH := $(BUILD_PATH)/$(PKG_PATH)
+
+SRC := ServerMain.class WordleServer.class logging/ConsoleHandler.class Action.class \
+	WordleServerCore.class ClientState.class WordleServerRMI.class
+SRC_FULL := $(addprefix $(BUILD_FULL_PATH)/,$(SRC))
+
 JC := javac
-JFLAGS :=
+JFLAGS := -cp lib/gson-2.10.1.jar:$(BASE_PATH): -d $(BUILD_PATH)
 
-PROJECT_PATH := ./edu/riccardomori/wordle
-
-.PHONY: clean all jar
+.PHONY: clean all jar gradle-jar
 
 default: all
 
 
-$(PROJECT_PATH)/%.class: $(PROJECT_PATH)/%.java
+$(BUILD_PATH)/$(PKG_PATH)/%.class: $(PROJECT_PATH)/%.java
 	$(JC) $(JFLAGS) $<
 
 jar: all
-	jar -c -v -m META-INF/MANIFEST.MF -f wordle.jar $$(find $(PROJECT_PATH) -name '*.class')
+	cp -r META-INF $(BUILD_PATH)/
+	cd $(BUILD_PATH) && jar -c -v -m META-INF/MANIFEST.MF -f wordle.jar $$(find . -name '*.class')
+	mv $(BUILD_PATH)/wordle.jar ./wordle.jar
 
-all: $(PROJECT_PATH)/ServerMain.class $(PROJECT_PATH)/WordleServer.class \
-	$(PROJECT_PATH)/logging/ConsoleHandler.class $(PROJECT_PATH)/Action.class \
-	$(PROJECT_PATH)/Action.class $(PROJECT_PATH)/WordleServerCore.class \
-	$(PROJECT_PATH)/ClientState.java
+all: $(SRC_FULL)
+
+gradle-jar:
+	./gradlew build
+	cp ./app/build/libs/wordle.jar ./wordle-gradle.jar
 
 clean:
 	rm -f wordle.jar
-	find $(PROJECT_PATH) -name '*.class' -exec rm -f '{}' \;
+	rm -rf $(BUILD_PATH)
