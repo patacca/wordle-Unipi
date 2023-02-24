@@ -1,7 +1,5 @@
 *.jar
-edu/riccardomori/wordle/*.class
-edu/riccardomori/wordle/*/*.class
-*.properties
+./*.properties
 
 # Ignore Gradle project-specific cache directory
 .gradle
