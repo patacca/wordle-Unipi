@@ -1,8 +1,11 @@
-package edu.riccardomori.wordle;
+package edu.riccardomori.wordle.server;
 
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.util.logging.Logger;
+import edu.riccardomori.wordle.Action;
+import edu.riccardomori.wordle.ClientState;
+import edu.riccardomori.wordle.server.WordleServer;
 
 public class WordleServerCore {
     private int interestOps; // The interest set of operations as a bitmask
