@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.Reader;
 import java.net.InetSocketAddress;
 import java.net.StandardSocketOptions;
 import java.nio.ByteBuffer;
@@ -11,6 +12,10 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
+import java.rmi.RemoteException;
+import java.rmi.registry.LocateRegistry;
+import java.rmi.registry.Registry;
+import java.rmi.server.UnicastRemoteObject;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -25,16 +30,21 @@ import com.google.gson.reflect.TypeToken;
  * channels. It also handles the generation of the secret word and the authentication of a pair
  * (user, password). It is a singleton class.
  */
-public final class WordleServer {
+public final class WordleServer implements WordleServerRMI {
     private static WordleServer instance; // Singleton instance
+
+    // Constants
+    private static final String USERS_DB_FILE = "users.json"; // File where to store the users
+                                                              // credentials
+    private static final String RMI_REGISTER = "REGISTER"; // Name of the register RMI method
+
 
     private boolean isConfigured = false; // Flag that forbids running the server if previously it
                                           // was not configured
-    private int port; // The port of the server socket
+    private int tcpPort; // The port of the server socket
+    private int rmiPort; // The port of the RMI server
     private Logger logger;
     private int socketBufferCapacity = 1024; // Size of the buffer for each socket read
-
-    private static final String userDbFile = "users.json";
 
     private Map<String, String> users;
 
@@ -81,27 +91,52 @@ public final class WordleServer {
     }
 
     /**
-     * Configure the server.
-     * 
-     * @param port // The port for the server socket
-     */
-    public void configure(int port) {
-        this.port = port;
-        this.isConfigured = true;
-    }
-
-    /**
-     * Load the users from the database
+     * Load the users from the database USERS_DB_FILE.
      */
     private void loadUsers() {
-        try {
+        try (Reader in = new BufferedReader(new FileReader(WordleServer.USERS_DB_FILE))) {
             Gson gson = new Gson();
             TypeToken<Map<String, String>> type = new TypeToken<Map<String, String>>() {};
-            this.users = gson.fromJson(new BufferedReader(new FileReader(this.userDbFile)), type);
+            this.users = gson.fromJson(in, type);
         } catch (FileNotFoundException e) {
             this.logger.info("User database not found");
             this.users = new HashMap<>();
+        } catch (IOException e) {
+            e.printStackTrace();
+            System.exit(1);
         }
+    }
+
+    /**
+     * Register all the RMI services
+     */
+    private void runRMIServer() {
+        try {
+            WordleServerRMI stub = (WordleServerRMI) UnicastRemoteObject.exportObject(this, 0);
+            Registry registry = LocateRegistry.createRegistry(this.rmiPort);
+            registry.rebind(WordleServer.RMI_REGISTER, stub);
+        } catch (RemoteException e) {
+            e.printStackTrace();
+            System.exit(1);
+        }
+    }
+
+    /**
+     * Configure the server.
+     * 
+     * @param tcpPort // The port for the server socket
+     * @param rmiPort // The port for the RMI server
+     */
+    public void configure(int tcpPort, int rmiPort) {
+        this.tcpPort = tcpPort;
+        this.rmiPort = rmiPort;
+        this.isConfigured = true;
+    }
+
+    @Override
+    public boolean register(String username, String password) throws RemoteException {
+        this.logger.info("New registration");
+        return false;
     }
 
     /**
@@ -128,12 +163,15 @@ public final class WordleServer {
         // Load the users database
         this.loadUsers();
 
+        // Run RMI services
+        this.runRMIServer();
+
         try (ServerSocketChannel socket = ServerSocketChannel.open();
                 Selector selector = Selector.open()) {
-            // Init server socket and listen on port `this.port`
-            socket.bind(new InetSocketAddress(this.port));
+            // Init server socket and listen on port `this.tcpPort`
+            socket.bind(new InetSocketAddress(this.tcpPort));
             socket.configureBlocking(false);
-            this.logger.info(String.format("Listening on port %d", this.port));
+            this.logger.info(String.format("Listening on port %d", this.tcpPort));
 
             // register the selector
             socket.register(selector, SelectionKey.OP_ACCEPT);

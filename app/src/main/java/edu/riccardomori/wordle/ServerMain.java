@@ -8,7 +8,7 @@ import java.util.Properties;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
+import com.google.gson.reflect.TypeToken;
 import edu.riccardomori.wordle.logging.ConsoleHandler;
 
 /**
@@ -17,10 +17,12 @@ import edu.riccardomori.wordle.logging.ConsoleHandler;
 public class ServerMain {
     private static final String configFile = "ServerMain.properties";
 
-    private static int port;
+    private static int serverPort;
+    private static int rmiPort;
     private static int verbosity;
 
     public static void main(String args[]) {
+        TypeToken<String> type = new TypeToken<String>() {};
         // Load the configuration
         try {
             ServerMain.loadConfig();
@@ -64,7 +66,7 @@ public class ServerMain {
 
         // Initialize Server
         WordleServer server = WordleServer.getInstance();
-        server.configure(ServerMain.port);
+        server.configure(ServerMain.serverPort, ServerMain.rmiPort);
 
         // Run the server
         server.run();
@@ -80,7 +82,8 @@ public class ServerMain {
         InputStream input = new FileInputStream(ServerMain.configFile);
         Properties prop = new Properties();
         prop.load(input);
-        ServerMain.port = Integer.parseInt(prop.getProperty("port"));
+        ServerMain.serverPort = Integer.parseInt(prop.getProperty("server_port"));
+        ServerMain.rmiPort = Integer.parseInt(prop.getProperty("rmi_port"));
         verbosity = Integer.parseInt(prop.getProperty("verbose"));
         input.close();
     }
