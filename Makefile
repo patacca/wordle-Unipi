@@ -4,8 +4,9 @@ PROJECT_PATH := $(BASE_PATH)/$(PKG_PATH)
 BUILD_PATH := ./build
 BUILD_FULL_PATH := $(BUILD_PATH)/$(PKG_PATH)
 
-SRC := ServerMain.class WordleServer.class logging/ConsoleHandler.class Action.class \
-	WordleServerCore.class ClientState.class WordleServerRMI.class
+SRC := server/ServerMain.class server/WordleServer.class server/WordleServerCore.class \
+	server/WordleServerRMI.class logging/ConsoleHandler.class Action.class \
+	ClientState.class
 SRC_FULL := $(addprefix $(BUILD_FULL_PATH)/,$(SRC))
 
 JC := javac
