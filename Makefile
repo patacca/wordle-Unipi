@@ -5,6 +5,7 @@ BUILD_PATH := ./build
 BUILD_FULL_PATH := $(BUILD_PATH)/$(PKG_PATH)
 
 SRC := server/ServerMain.class server/WordleServer.class server/WordleServerCore.class \
+	client/ClientMain.class \
 	server/WordleServerRMI.class logging/ConsoleHandler.class Action.class \
 	ClientState.class
 SRC_FULL := $(addprefix $(BUILD_FULL_PATH)/,$(SRC))
@@ -22,14 +23,20 @@ $(BUILD_PATH)/$(PKG_PATH)/%.class: $(PROJECT_PATH)/%.java
 
 jar: all
 	cp -r META-INF $(BUILD_PATH)/
-	cd $(BUILD_PATH) && jar -c -v -m META-INF/MANIFEST.MF -f wordle.jar $$(find . -name '*.class')
-	mv $(BUILD_PATH)/wordle.jar ./wordle.jar
+	sed -i 's/server.ServerMain/client.ClientMain/g' $(BUILD_PATH)/META-INF/MANIFEST.MF
+	cd $(BUILD_PATH) && jar -c -v -m META-INF/MANIFEST.MF -f client.jar $$(find . -name '*.class')
+	sed -i 's/client.ClientMain/server.ServerMain/g' $(BUILD_PATH)/META-INF/MANIFEST.MF
+	cd $(BUILD_PATH) && jar -c -v -m META-INF/MANIFEST.MF -f server.jar $$(find . -name '*.class')
+	mv $(BUILD_PATH)/client.jar $(BUILD_PATH)/server.jar ./
 
 all: $(SRC_FULL)
 
 gradle-jar:
 	./gradlew build
-	cp ./app/build/libs/wordle.jar ./wordle-gradle.jar
+	./gradlew clientJar
+	./gradlew serverJar
+	cp ./app/build/libs/client.jar ./gradle-client.jar
+	cp ./app/build/libs/server.jar ./gradle-server.jar
 
 clean:
 	rm -f wordle.jar
