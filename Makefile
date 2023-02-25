@@ -4,10 +4,8 @@ PROJECT_PATH := $(BASE_PATH)/$(PKG_PATH)
 BUILD_PATH := ./build
 BUILD_FULL_PATH := $(BUILD_PATH)/$(PKG_PATH)
 
-SRC := server/ServerMain.class server/WordleServer.class server/WordleServerCore.class \
-	server/WordleServerRMI.class \
-	client/ClientMain.class client/ClientCLI.class client/Command.class \
-	logging/ConsoleHandler.class Action.class ClientState.class utils/RMIConstants.class
+SRC := $(shell find $$BASE_PATH -name '*.java' | while read aa; do echo $${aa#*app/src/main/java/edu/riccardomori/wordle/}; done)
+SRC := $(SRC:.java=.class)
 SRC_FULL := $(addprefix $(BUILD_FULL_PATH)/,$(SRC))
 
 JC := javac
