@@ -1,10 +1,13 @@
 package edu.riccardomori.wordle.server;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Reader;
+import java.io.Writer;
 import java.net.InetSocketAddress;
 import java.net.StandardSocketOptions;
 import java.nio.ByteBuffer;
@@ -24,14 +27,18 @@ import java.util.logging.Logger;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-import edu.riccardomori.wordle.utils.RMIConstants;
+import edu.riccardomori.wordle.rmi.RMIConstants;
+import edu.riccardomori.wordle.rmi.RMIStatus;
+import edu.riccardomori.wordle.rmi.serverRMI;
+import edu.riccardomori.wordle.rmi.exceptions.PasswordIllegalException;
+import edu.riccardomori.wordle.rmi.exceptions.UsernameIllegalException;
 
 /**
  * This is the main server class. It handles all the incoming connections with non-blocking
  * channels. It also handles the generation of the secret word and the authentication of a pair
  * (user, password). It is a singleton class.
  */
-public final class WordleServer implements WordleServerRMI {
+public final class WordleServer implements serverRMI {
     private static WordleServer instance; // Singleton instance
 
     // Constants
@@ -89,6 +96,17 @@ public final class WordleServer implements WordleServerRMI {
         return WordleServer.instance;
     }
 
+    private synchronized void flush() {
+        Gson gson = new Gson();
+        String data = gson.toJson(this.users);
+        try (Writer out = new BufferedWriter(new FileWriter(WordleServer.USERS_DB_FILE))) {
+            out.write(data);
+        } catch (IOException e) {
+            e.printStackTrace();
+            System.exit(1);
+        }
+    }
+
     /**
      * Load the users from the database USERS_DB_FILE.
      */
@@ -111,7 +129,7 @@ public final class WordleServer implements WordleServerRMI {
      */
     private void runRMIServer() {
         try {
-            WordleServerRMI stub = (WordleServerRMI) UnicastRemoteObject.exportObject(this, 0);
+            serverRMI stub = (serverRMI) UnicastRemoteObject.exportObject(this, 0);
             Registry registry = LocateRegistry.createRegistry(this.rmiPort);
             registry.rebind(RMIConstants.RMI_REGISTER, stub);
         } catch (RemoteException e) {
@@ -133,9 +151,26 @@ public final class WordleServer implements WordleServerRMI {
     }
 
     @Override
-    public boolean register(String username, String password) throws RemoteException {
+    public RMIStatus register(String username, String password) throws RemoteException {
         this.logger.info("New registration");
-        return false;
+
+        // Check username and password
+        if (!username.matches("^[a-zA-Z0-9][a-zA-Z0-9_]{2,64}$")) {
+            throw new UsernameIllegalException("username not valid");
+        }
+        if (!password.matches("[a-zA-Z0-9_`~!@#$%^&*()\\-=+{}\\[\\];:''\",<.>/?\\\\|]{4,64}")) {
+            throw new PasswordIllegalException("password not valid");
+        }
+
+        // Check if exists username
+        if (this.users.containsKey(username))
+            return RMIStatus.USER_TAKEN;
+
+        // Save the user and sync the database
+        this.users.put(username, password);
+        this.flush();
+
+        return RMIStatus.SUCCESS;
     }
 
     /**
