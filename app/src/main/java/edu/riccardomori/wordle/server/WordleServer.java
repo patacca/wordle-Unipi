@@ -88,6 +88,12 @@ public final class WordleServer implements serverRMI {
 
     private WordleServer() {
         this.logger = Logger.getLogger("Wordle");
+
+        // Register a shutdown hook to keep syncronized the database
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            this.logger.finer("Exiting, syncing with the db");
+            this.flush();
+        }));
     }
 
     public static WordleServer getInstance() {
