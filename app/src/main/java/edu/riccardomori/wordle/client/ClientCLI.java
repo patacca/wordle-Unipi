@@ -2,15 +2,15 @@ package edu.riccardomori.wordle.client;
 
 import java.io.PrintStream;
 import java.rmi.NotBoundException;
-import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.util.Scanner;
 import java.util.SortedSet;
 import java.util.TreeSet;
-import edu.riccardomori.wordle.server.WordleServerRMI;
-import edu.riccardomori.wordle.utils.RMIConstants;
+import edu.riccardomori.wordle.rmi.RMIConstants;
+import edu.riccardomori.wordle.rmi.RMIStatus;
+import edu.riccardomori.wordle.rmi.serverRMI;
 
 public class ClientCLI {
     private final PrintStream out = System.out;
@@ -29,13 +29,18 @@ public class ClientCLI {
         // Initialize the valid commands
         this.commandSet = new TreeSet<>();
         this.commandSet.add(Command.REGISTER);
+        this.commandSet.add(Command.LOGIN);
         this.commandSet.add(Command.EXIT);
     }
 
     private void printActions() {
         this.out.println("\nChoose one of these actions");
-        this.out.println("  1. Register");
-        this.out.println("  2. Exit\n");
+        int k = 1;
+        for (Command c : this.commandSet) {
+            String s = c.toString().toLowerCase();
+            this.out.format("  %d. %s\n", k, s.substring(0, 1).toUpperCase() + s.substring(1));
+            ++k;
+        }
     }
 
     /**
@@ -45,10 +50,15 @@ public class ClientCLI {
      */
     private Command readCommand() {
         this.out.print("> ");
-        Command command;
+        Command command = Command.INVALID;
         try {
-            command = Command.fromInt(Integer.parseInt(this.in.nextLine()));
-        } catch (IllegalArgumentException e) {
+            int c = Integer.parseInt(this.in.nextLine());
+            for (Command curr : this.commandSet) {
+                --c;
+                if (c == 0)
+                    command = curr;
+            }
+        } catch (NumberFormatException e) {
             command = Command.INVALID;
         }
         while (!this.isValidCommand(command)) {
@@ -56,9 +66,15 @@ public class ClientCLI {
             this.out.println(
                     "Please enter only the number that represents the action you want to do");
             this.out.print("> ");
+            command = Command.INVALID;
             try {
-                command = Command.fromInt(Integer.parseInt(this.in.nextLine()));
-            } catch (IllegalArgumentException e) {
+                int c = Integer.parseInt(this.in.nextLine());
+                for (Command curr : this.commandSet) {
+                    --c;
+                    if (c == 0)
+                        command = curr;
+                }
+            } catch (NumberFormatException e) {
                 command = Command.INVALID;
             }
         }
@@ -82,14 +98,20 @@ public class ClientCLI {
         this.out.print("Enter your password > ");
         String password = this.in.nextLine();
 
+        // Check username and password
+
         Registry registry = LocateRegistry.getRegistry(this.serverHost, this.rmiPort);
         try {
-            WordleServerRMI service = (WordleServerRMI) registry.lookup(RMIConstants.RMI_REGISTER);
-            boolean result = service.register(username, password);
-            if (result) {
+            serverRMI service = (serverRMI) registry.lookup(RMIConstants.RMI_REGISTER);
+            RMIStatus result = service.register(username, password);
+            if (result == RMIStatus.SUCCESS) {
                 this.out.println("Successfully registered!");
+                this.commandSet.add(Command.LOGIN);
+                this.commandSet.remove(Command.REGISTER);
+            } else if (result == RMIStatus.USER_TAKEN) {
+                this.out.println("Username already taken.");
             } else {
-                this.out.println("Cannot register");
+                this.out.println("An error happened while registering.");
             }
         } catch (NotBoundException e) {
             this.out.println("The server is not responding. It might be offline");
@@ -97,10 +119,25 @@ public class ClientCLI {
         }
     }
 
+    private void login() {
+        this.out.print("Enter your username > ");
+        String username = this.in.nextLine();
+        this.out.print("Enter your password > ");
+        String password = this.in.nextLine();
+
+        // init-retrieve the socket
+        // send the login command
+        // wait for response
+        // notify the user about the result
+    }
+
     private void handleCommand(Command command) throws RemoteException {
         switch (command) {
             case REGISTER:
                 this.register();
+                break;
+            case LOGIN:
+                this.login();
                 break;
             case EXIT:
                 this.out.println("Bye bye!");
@@ -122,6 +159,7 @@ public class ClientCLI {
             try {
                 this.handleCommand(command);
             } catch (RemoteException e) {
+                // e.printStackTrace(); // TODO delete this
                 this.out.println("Remote exception occurred. Try again");
             }
         }

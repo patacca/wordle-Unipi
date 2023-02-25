@@ -5,7 +5,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 public enum Command {
-    REGISTER(1), EXIT(2), INVALID(-1);
+    REGISTER(1), LOGIN(2), EXIT(3), INVALID(-1);
 
     private final int value;
     private final static Map<Integer, Command> map = Arrays.stream(Command.values())
