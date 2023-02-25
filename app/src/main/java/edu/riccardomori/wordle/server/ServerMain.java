@@ -38,29 +38,36 @@ public class ServerMain {
         switch (ServerMain.verbosity) {
             case 0:
                 handler.setLevel(Level.SEVERE);
+                logger.setLevel(Level.SEVERE);
                 break;
             case 1:
                 handler.setLevel(Level.WARNING);
+                logger.setLevel(Level.WARNING);
                 break;
             case 2:
                 handler.setLevel(Level.INFO);
+                logger.setLevel(Level.INFO);
                 break;
             case 3:
                 handler.setLevel(Level.FINE);
+                logger.setLevel(Level.FINE);
                 break;
             case 4:
                 handler.setLevel(Level.FINER);
+                logger.setLevel(Level.FINER);
                 break;
             case 5:
                 handler.setLevel(Level.FINEST);
+                logger.setLevel(Level.FINEST);
                 break;
             default:
                 handler.setLevel(Level.SEVERE);
+                logger.setLevel(Level.SEVERE);
                 break;
         }
         logger.addHandler(handler);
         logger.setUseParentHandlers(false);
-        logger.setLevel(Level.ALL);
+        // logger.setLevel(Level.ALL);
 
         // Initialize Server
         WordleServer server = WordleServer.getInstance();
