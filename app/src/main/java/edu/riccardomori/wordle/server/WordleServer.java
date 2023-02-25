@@ -24,6 +24,7 @@ import java.util.logging.Logger;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import edu.riccardomori.wordle.utils.RMIConstants;
 
 /**
  * This is the main server class. It handles all the incoming connections with non-blocking
@@ -36,8 +37,6 @@ public final class WordleServer implements WordleServerRMI {
     // Constants
     private static final String USERS_DB_FILE = "users.json"; // File where to store the users
                                                               // credentials
-    private static final String RMI_REGISTER = "REGISTER"; // Name of the register RMI method
-
 
     private boolean isConfigured = false; // Flag that forbids running the server if previously it
                                           // was not configured
@@ -114,7 +113,7 @@ public final class WordleServer implements WordleServerRMI {
         try {
             WordleServerRMI stub = (WordleServerRMI) UnicastRemoteObject.exportObject(this, 0);
             Registry registry = LocateRegistry.createRegistry(this.rmiPort);
-            registry.rebind(WordleServer.RMI_REGISTER, stub);
+            registry.rebind(RMIConstants.RMI_REGISTER, stub);
         } catch (RemoteException e) {
             e.printStackTrace();
             System.exit(1);
