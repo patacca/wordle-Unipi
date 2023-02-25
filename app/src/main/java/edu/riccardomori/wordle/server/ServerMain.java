@@ -8,7 +8,6 @@ import java.util.Properties;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import com.google.gson.reflect.TypeToken;
 import edu.riccardomori.wordle.logging.ConsoleHandler;
 
 /**
@@ -22,7 +21,6 @@ public class ServerMain {
     private static int verbosity;
 
     public static void main(String args[]) {
-        TypeToken<String> type = new TypeToken<String>() {};
         // Load the configuration
         try {
             ServerMain.loadConfig();
