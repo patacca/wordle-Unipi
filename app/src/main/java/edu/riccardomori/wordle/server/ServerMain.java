@@ -67,7 +67,6 @@ public class ServerMain {
         }
         logger.addHandler(handler);
         logger.setUseParentHandlers(false);
-        // logger.setLevel(Level.ALL);
 
         // Initialize Server
         WordleServer server = WordleServer.getInstance();
