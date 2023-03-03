@@ -1,4 +1,4 @@
-package edu.riccardomori.wordle;
+package edu.riccardomori.wordle.protocol;
 
 public enum Action {
     LOGIN((byte) 0), UNKNOWN((byte) 0xff);
@@ -16,5 +16,9 @@ public enum Action {
             default:
                 return UNKNOWN;
         }
+    }
+
+    public byte getValue() {
+        return this.value;
     }
 }

@@ -44,13 +44,14 @@ public final class WordleServer implements serverRMI {
     // Constants
     private static final String USERS_DB_FILE = "users.json"; // File where to store the users
                                                               // credentials
+    public static final int SOCKET_MSG_MAX_SIZE = 1024; // Maximum size for each message
 
+    // Attributes
     private boolean isConfigured = false; // Flag that forbids running the server if previously it
                                           // was not configured
     private int tcpPort; // The port of the server socket
     private int rmiPort; // The port of the RMI server
     private Logger logger;
-    private int socketBufferCapacity = 1024; // Size of the buffer for each socket read
 
     private Map<String, String> users;
 
@@ -79,6 +80,7 @@ public final class WordleServer implements serverRMI {
          */
         public ByteBuffer finishRead() {
             ByteBuffer retBuff = ByteBuffer.wrap(this.readBuffer.array().clone());
+            retBuff.limit(this.readBuffer.position());
             this.readBuffer.clear();
             this.readMessageSize = -1;
 
@@ -188,7 +190,7 @@ public final class WordleServer implements serverRMI {
      * @return Whether the pair (username, password) is valid
      */
     public boolean checkLogin(String username, String password) {
-        return (username == "user" && password == "pass");
+        return (this.users.containsKey(username) && this.users.get(username).equals(password));
     }
 
     /**
@@ -264,7 +266,7 @@ public final class WordleServer implements serverRMI {
         int interestOps = serverBackend.getInterestOps();
 
         socket.register(selector, interestOps, new ConnectionState(serverBackend,
-                this.socketBufferCapacity, this.socketBufferCapacity));
+                WordleServer.SOCKET_MSG_MAX_SIZE, WordleServer.SOCKET_MSG_MAX_SIZE));
     }
 
     // @formatter:off
@@ -313,6 +315,6 @@ public final class WordleServer implements serverRMI {
         if (size < state.readMessageSize) // Not enough bytes
             return;
 
-        state.backend.readMessage(state.finishRead());
+        state.backend.handleMessage(state.finishRead());
     }
 }
