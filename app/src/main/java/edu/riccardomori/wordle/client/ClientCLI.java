@@ -95,10 +95,23 @@ public class ClientCLI {
     private void register() throws RemoteException {
         this.out.print("Enter your username > ");
         String username = this.in.nextLine();
+
+        // Check username
+        while (!username.matches("^[a-zA-Z0-9][a-zA-Z0-9_]{2,64}$")) {
+            this.out.println("Username not valid.");
+            this.out.print("Choose a valid username > ");
+            username = this.in.nextLine();
+        }
+
         this.out.print("Enter your password > ");
         String password = this.in.nextLine();
 
-        // Check username and password
+        // Check password
+        while (!password.matches("[a-zA-Z0-9_`~!@#$%^&*()\\-=+{}\\[\\];:''\",<.>/?\\\\|]{4,64}")) {
+            this.out.println("Password not valid.");
+            this.out.print("Choose a valid password > ");
+            password = this.in.nextLine();
+        }
 
         Registry registry = LocateRegistry.getRegistry(this.serverHost, this.rmiPort);
         try {
