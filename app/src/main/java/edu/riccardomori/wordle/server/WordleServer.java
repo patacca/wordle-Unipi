@@ -306,6 +306,15 @@ public final class WordleServer implements serverRMI {
 
             // Update the size of the buffer
             size = state.readBuffer.position();
+
+            // If the size is not acceptable close the connection
+            if (state.readMessageSize > WordleServer.SOCKET_MSG_MAX_SIZE) {
+                this.logger.info(String.format(
+                        "Message (%d bytes) exceeds maximum size. Closing connection.",
+                        state.readMessageSize));
+                socket.close();
+                return;
+            }
         }
 
         // Here we know the app message size
@@ -314,6 +323,10 @@ public final class WordleServer implements serverRMI {
 
         if (size < state.readMessageSize) // Not enough bytes
             return;
+        if (size > state.readMessageSize) // Message is too long
+            this.logger.warning(String.format(
+                    "Received a message longer than what previously advertised (%d over %d bytes)",
+                    size, state.readMessageSize));
 
         state.backend.handleMessage(state.finishRead());
     }
