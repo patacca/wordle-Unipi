@@ -1,7 +1,7 @@
 package edu.riccardomori.wordle.protocol;
 
 public enum Action {
-    LOGIN((byte) 0), UNKNOWN((byte) 0xff);
+    LOGIN((byte) 0), LOGOUT((byte) 1), UNKNOWN((byte) 0xff);
 
     private final byte value;
 
@@ -13,6 +13,8 @@ public enum Action {
         switch (value) {
             case 0:
                 return LOGIN;
+            case 1:
+                return LOGOUT;
             default:
                 return UNKNOWN;
         }

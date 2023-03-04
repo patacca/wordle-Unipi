@@ -26,6 +26,9 @@ import edu.riccardomori.wordle.rmi.RMIStatus;
 import edu.riccardomori.wordle.rmi.serverRMI;
 
 public class ClientCLI {
+    // Constants
+    public static final int SOCKET_MSG_MAX_SIZE = 1024; // Maximum size for each message
+
     private final PrintStream out = System.out;
     private final Scanner in = new Scanner(System.in);
     private SortedSet<Command> commandSet;
@@ -62,6 +65,11 @@ public class ClientCLI {
         public void login(String username) {
             this.state = ClientState.LOGGED;
             this.username = username;
+        }
+
+        public void logout() {
+            this.state = ClientState.ANONYMOUS;
+            this.username = null;
         }
 
         public boolean isLogged() {
@@ -247,8 +255,8 @@ public class ClientCLI {
         String password = this.readUntil((input) -> input.length() < 256,
                 "The password is too large.", "Enter your password > ");
 
-        // Send the login command
-        ByteBuffer data = ByteBuffer.allocate(1024);
+        // Prepare the login command
+        ByteBuffer data = ByteBuffer.allocate(ClientCLI.SOCKET_MSG_MAX_SIZE);
         data.put(Action.LOGIN.getValue());
         data.put((byte) username.length());
         data.put((byte) password.length());
@@ -272,8 +280,43 @@ public class ClientCLI {
                 // Update the command set
                 this.commandSet.remove(Command.LOGIN);
                 this.commandSet.remove(Command.REGISTER);
+                this.commandSet.add(Command.LOGOUT);
             } else if (status == MessageStatus.INVALID_USER) {
                 this.out.println("Wrong username or password.");
+            } else {
+                this.out.println("An error happened. Try again later.");
+            }
+        } catch (IOException e) {
+            // TODO
+            // this.out.println("I/O during server communication.");
+            e.printStackTrace();
+            this.exit(1);
+        }
+    }
+
+    private void logout() {
+        // Prepare the logout command
+        ByteBuffer data = ByteBuffer.allocate(ClientCLI.SOCKET_MSG_MAX_SIZE);
+        data.put(Action.LOGOUT.getValue());
+        data.flip();
+
+        try {
+            this.socketWrite(data);
+
+            // Wait for the response
+            MessageStatus status = this.socketGetStatus();
+
+            // Success
+            if (status == MessageStatus.SUCCESS) {
+                this.out.println("Logged out");
+
+                // Update the session state
+                this.session.logout();
+
+                // Update the command set
+                this.commandSet.add(Command.LOGIN);
+                this.commandSet.add(Command.REGISTER);
+                this.commandSet.remove(Command.LOGOUT);
             } else {
                 this.out.println("An error happened. Try again later.");
             }
@@ -292,6 +335,9 @@ public class ClientCLI {
                 break;
             case LOGIN:
                 this.login();
+                break;
+            case LOGOUT:
+                this.logout();
                 break;
             case EXIT:
                 this.exit(0);
