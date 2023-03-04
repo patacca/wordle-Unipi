@@ -5,8 +5,8 @@ import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.charset.StandardCharsets;
 import java.util.logging.Logger;
-import edu.riccardomori.wordle.ClientState;
 import edu.riccardomori.wordle.protocol.Action;
+import edu.riccardomori.wordle.protocol.ClientState;
 import edu.riccardomori.wordle.protocol.MessageStatus;
 import edu.riccardomori.wordle.server.WordleServer;
 
@@ -86,6 +86,16 @@ public class WordleServerCore {
         }
     }
 
+    private void logoutHandler() {
+        this.logger.info(String.format("User `%s`: action Logout", this.username));
+
+        this.state = ClientState.ANONYMOUS;
+        this.username = null;
+
+        // Prepare the success message
+        this.sendMessage(MessageStatus.SUCCESS);
+    }
+
     /**
      * Read the message provided in the buffer and perform the action requested considering the
      * current state of the session. Note that the message **must** always be complete. A partial or
@@ -109,9 +119,20 @@ public class WordleServerCore {
                     this.sendMessage(MessageStatus.ACTION_UNAUTHORIZED);
                     break;
             }
+        } else if (this.state == ClientState.LOGGED) {
+            switch (Action.fromByte(buffer.get())) {
+                case LOGOUT:
+                    this.logoutHandler();
+                    break;
+
+                default:
+                    this.logger.info(String.format("User `%s` not allowed to perform this action",
+                            this.username));
+                    this.sendMessage(MessageStatus.ACTION_UNAUTHORIZED);
+                    break;
+            }
         } else {
-            this.logger.info(
-                    String.format("User `%s` not allowed to perform this action", this.username));
+            this.logger.info("Not allowed to perform this action");
             this.sendMessage(MessageStatus.ACTION_UNAUTHORIZED);
         }
 
