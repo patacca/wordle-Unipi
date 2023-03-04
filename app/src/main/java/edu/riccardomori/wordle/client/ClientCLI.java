@@ -1,6 +1,8 @@
 package edu.riccardomori.wordle.client;
 
+import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
+import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
@@ -17,6 +19,7 @@ import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.function.Predicate;
 import edu.riccardomori.wordle.protocol.Action;
+import edu.riccardomori.wordle.protocol.MessageStatus;
 import edu.riccardomori.wordle.rmi.RMIConstants;
 import edu.riccardomori.wordle.rmi.RMIStatus;
 import edu.riccardomori.wordle.rmi.serverRMI;
@@ -172,6 +175,14 @@ public class ClientCLI {
         out.flush();
     }
 
+    private MessageStatus socketGetStatus() throws IOException {
+        DataInputStream input =
+                new DataInputStream(new BufferedInputStream(this.socket.getInputStream()));
+        int size = input.readInt();
+        byte[] message = input.readNBytes(size);
+        return MessageStatus.fromByte(message[0]);
+    }
+
     private void register() throws RemoteException {
         // Check username & password
         String username = this.readUntil(
@@ -208,7 +219,7 @@ public class ClientCLI {
         String password = this.readUntil((input) -> input.length() < 256,
                 "The password is too large.", "Enter your password > ");
 
-        // send the login command
+        // Send the login command
         ByteBuffer data = ByteBuffer.allocate(1024);
         data.put(Action.LOGIN.getValue());
         data.put((byte) username.length());
@@ -216,16 +227,28 @@ public class ClientCLI {
         data.put(username.getBytes(StandardCharsets.US_ASCII));
         data.put(password.getBytes(StandardCharsets.US_ASCII));
         data.flip();
+
         try {
             this.socketWrite(data);
+
+            // Wait for the response
+            MessageStatus status = this.socketGetStatus();
+
+            // Success
+            if (status == MessageStatus.SUCCESS) {
+                this.out.println("Logged in successfully!");
+                this.commandSet.remove(Command.LOGIN);
+            } else if (status == MessageStatus.INVALID_USER) {
+                this.out.println("Wrong username or password.");
+            } else {
+                this.out.println("An error happened. Try again later.");
+            }
         } catch (IOException e) {
+            // TODO
             // this.out.println("I/O during server communication.");
             e.printStackTrace();
             this.exit(1);
         }
-
-        // wait for response
-        // notify the user about the result
     }
 
     private void handleCommand(Command command) throws RemoteException {
