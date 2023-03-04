@@ -11,10 +11,14 @@ import java.io.Writer;
 import java.net.InetSocketAddress;
 import java.net.StandardSocketOptions;
 import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
+import java.nio.channels.FileChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Paths;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
@@ -23,6 +27,10 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 import com.google.gson.Gson;
@@ -45,15 +53,24 @@ public final class WordleServer implements serverRMI {
     private static final String USERS_DB_FILE = "users.json"; // File where to store the users
                                                               // credentials
     public static final int SOCKET_MSG_MAX_SIZE = 1024; // Maximum size for each message
+    public static final int WORD_MAX_SIZE = 48; // Maximum size in bytes of a word
 
     // Attributes
     private boolean isConfigured = false; // Flag that forbids running the server if previously it
                                           // was not configured
     private int tcpPort; // The port of the server socket
     private int rmiPort; // The port of the RMI server
+    private int swRate; // Secret Word generation rate (in seconds)
+    private String wordsDb; // File that contains the secret words to choose from
+    private int wordTries; // Number of available tries for each game
+
     private Logger logger;
 
+    // Scheduler for the current word generation
+    private ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
     private Map<String, String> users;
+    private volatile String secretWord; // Secret Word
+
 
     /**
      * Private static class that is used to describe the state of a client connection.
@@ -119,6 +136,10 @@ public final class WordleServer implements serverRMI {
     }
 
     private synchronized void flush() {
+        // Check whether the data has been loadede before
+        if (this.users == null)
+            return;
+
         Gson gson = new Gson();
         String data = gson.toJson(this.users);
         try (Writer out = new BufferedWriter(new FileWriter(WordleServer.USERS_DB_FILE))) {
@@ -160,16 +181,72 @@ public final class WordleServer implements serverRMI {
         }
     }
 
+    private void runScheduler() {
+
+        // Change the secret word at a specified rate
+        this.scheduler.scheduleAtFixedRate(() -> {
+            try (FileChannel fc = FileChannel.open(Paths.get(this.wordsDb))) {
+                long fileSize = fc.size();
+                String newWord;
+
+                // Read a new random secret word that must be different from the previous one
+                do {
+                    // Seek somewhere randomly in the file
+                    long pos = ThreadLocalRandom.current().nextLong(fileSize);
+                    fc.position(pos);
+
+                    // Read the the word that is between two \n char or if we are at the beginning
+                    // of the file (pos == 0) read the first word
+                    ByteBuffer buffer = ByteBuffer.allocate((WordleServer.WORD_MAX_SIZE + 1) * 2);
+                    fc.read(buffer);
+                    buffer.flip();
+                    StringBuilder sb = new StringBuilder();
+                    boolean append = (pos == 0);
+                    CharBuffer charBuf = StandardCharsets.UTF_8.decode(buffer);
+                    while (charBuf.hasRemaining()) {
+                        char ch = charBuf.get();
+                        if (ch == '\n') {
+                            if (append)
+                                break;
+                            append = true;
+                        }
+                        if (append && ch != '\n')
+                            sb.append(ch);
+                    }
+                    newWord = sb.toString();
+                } while (newWord.equals(this.secretWord));
+
+                // Update new secret word
+                this.secretWord = newWord;
+                this.logger.info(String.format("Secret word changed to `%s`", newWord));
+            } catch (IOException e) {
+                this.logger.severe(
+                        String.format("Secret words file `%s` cannot be read.", this.wordsDb));
+                System.exit(1);
+            }
+        }, 0, this.swRate, TimeUnit.SECONDS);
+    }
+
     /**
      * Configure the server.
      * 
      * @param tcpPort // The port for the server socket
      * @param rmiPort // The port for the RMI server
+     * @param swRate // Refresh rate (in seconds) for the secret word
+     * @param wordsDb // The file that contains all the secret words to choose from
+     * @param wordTries // Number of available tries for each game
      */
-    public void configure(int tcpPort, int rmiPort) {
+    public void configure(int tcpPort, int rmiPort, int swRate, String wordsDb, int wordTries) {
         this.tcpPort = tcpPort;
         this.rmiPort = rmiPort;
+        this.swRate = swRate;
+        this.wordsDb = wordsDb;
+        this.wordTries = wordTries;
         this.isConfigured = true;
+    }
+
+    public int getWordTries() {
+        return this.wordTries;
     }
 
     @Override
@@ -208,6 +285,15 @@ public final class WordleServer implements serverRMI {
     }
 
     /**
+     * Returns the current word
+     * 
+     * @return The current word
+     */
+    public String getCurrentWord() {
+        return this.secretWord;
+    }
+
+    /**
      * The server main loop where it performs the multiplexing of the channels. The server must be
      * previously configured by calling WotdleServer.configure()
      */
@@ -215,6 +301,9 @@ public final class WordleServer implements serverRMI {
         // Check that all the parameters were configured
         if (!this.isConfigured)
             throw new RuntimeException("The server must be configured before running.");
+
+        // Run the scheduled services
+        this.runScheduler();
 
         // Load the users database
         this.loadUsers();

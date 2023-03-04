@@ -12,11 +12,12 @@ import edu.riccardomori.wordle.server.WordleServer;
 
 public class WordleServerCore {
     private int interestOps; // The interest set of operations as a bitmask
-    private ClientState state = ClientState.ANONYMOUS;
+    private ClientState state = new ClientState();
     private Logger logger;
 
     private String username; // The username of the client who is running this session
     private ByteBuffer writeBuf; // The buffer holding the writable data
+    private String lastPlayedSecretWord; // Last played secret word
 
     public WordleServerCore() {
         this.interestOps = SelectionKey.OP_READ;
@@ -38,12 +39,34 @@ public class WordleServerCore {
      * OP_WRITE
      * 
      * @param code The return code that is set in the message
+     * @param message An additional message to send
      */
-    private void sendMessage(MessageStatus code) {
+    private void sendMessage(MessageStatus code, ByteBuffer message) {
         this.writeBuf.clear();
         this.writeBuf.put(code.getValue());
+        this.writeBuf.putInt(message.limit());
+        this.writeBuf.put(message);
         this.writeBuf.flip();
         this.interestOps = SelectionKey.OP_WRITE;
+    }
+
+    /**
+     * Encode the string message to bytes with utf-8 and calls `sendMessage(code, byteMessage)`
+     * 
+     * @param code The return code that is set in the message
+     * @param message An additional message to send
+     */
+    private void sendMessage(MessageStatus code, String message) {
+        this.sendMessage(code, StandardCharsets.UTF_8.encode(message));
+    }
+
+    /**
+     * Calls `sendMessage(code, "")`
+     * 
+     * @param code The return code that is set in the message
+     */
+    private void sendMessage(MessageStatus code) {
+        this.sendMessage(code, ByteBuffer.allocate(0));
     }
 
     /**
@@ -74,7 +97,7 @@ public class WordleServerCore {
         // Authenticate
         if (WordleServer.getInstance().checkLogin(username, password)) {
             this.logger.finer(String.format("User `%s` logged in", username));
-            this.state = ClientState.LOGGED;
+            this.state.login();
             this.username = username;
 
             // Prepare the success message
@@ -89,11 +112,35 @@ public class WordleServerCore {
     private void logoutHandler() {
         this.logger.info(String.format("User `%s`: action Logout", this.username));
 
-        this.state = ClientState.ANONYMOUS;
+        this.state.logout();
         this.username = null;
 
         // Prepare the success message
         this.sendMessage(MessageStatus.SUCCESS);
+    }
+
+    private void playHandler() {
+        this.logger.info(String.format("User `%s`: action Play", this.username));
+
+        // Get the current word from server
+        String secretWord = WordleServer.getInstance().getCurrentWord();
+
+        // Check if player already played with that word
+        if (secretWord.equals(this.lastPlayedSecretWord)) {
+            this.sendMessage(MessageStatus.ALREADY_PLAYED);
+            return;
+        }
+
+        // Update the session state
+        this.state.play();
+        this.lastPlayedSecretWord = secretWord;
+
+        // Prepare the success message
+        ByteBuffer msg = ByteBuffer.allocate(Integer.BYTES*2);
+        msg.putInt(secretWord.length());
+        msg.putInt(WordleServer.getInstance().getWordTries());
+        msg.flip();
+        this.sendMessage(MessageStatus.SUCCESS, msg);
     }
 
     /**
@@ -108,7 +155,7 @@ public class WordleServerCore {
     public int handleMessage(ByteBuffer buffer) {
         this.logger.finest(String.format("Received a message of size %d", buffer.limit()));
 
-        if (this.state == ClientState.ANONYMOUS) {
+        if (this.state.isAnonymous()) { // Anonymous
             switch (Action.fromByte(buffer.get())) {
                 case LOGIN:
                     this.loginHandler(buffer);
@@ -119,7 +166,25 @@ public class WordleServerCore {
                     this.sendMessage(MessageStatus.ACTION_UNAUTHORIZED);
                     break;
             }
-        } else if (this.state == ClientState.LOGGED) {
+
+        } else if (this.state.isLogged() && !this.state.isPlaying()) { // Logged but not playing
+            switch (Action.fromByte(buffer.get())) {
+                case LOGOUT:
+                    this.logoutHandler();
+                    break;
+
+                case PLAY:
+                    this.playHandler();
+                    break;
+
+                default:
+                    this.logger.info(String.format("User `%s` not allowed to perform this action",
+                            this.username));
+                    this.sendMessage(MessageStatus.ACTION_UNAUTHORIZED);
+                    break;
+            }
+
+        } else if (this.state.isLogged() && this.state.isPlaying()) { // Logged and playing
             switch (Action.fromByte(buffer.get())) {
                 case LOGOUT:
                     this.logoutHandler();
@@ -131,7 +196,8 @@ public class WordleServerCore {
                     this.sendMessage(MessageStatus.ACTION_UNAUTHORIZED);
                     break;
             }
-        } else {
+
+        } else { // Else
             this.logger.info("Not allowed to perform this action");
             this.sendMessage(MessageStatus.ACTION_UNAUTHORIZED);
         }

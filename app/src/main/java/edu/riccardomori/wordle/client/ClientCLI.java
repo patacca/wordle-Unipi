@@ -31,7 +31,6 @@ public class ClientCLI {
 
     private final PrintStream out = System.out;
     private final Scanner in = new Scanner(System.in);
-    private SortedSet<Command> commandSet;
 
     private final int socketTimeout = 10000; // Timeout for reading on the socket
     private String serverHost; // The server host
@@ -44,36 +43,92 @@ public class ClientCLI {
         this.serverHost = host;
         this.serverPort = serverPort;
         this.rmiPort = rmiPort;
-
-        // Initialize the valid commands
-        this.commandSet = new TreeSet<>();
-        this.commandSet.add(Command.REGISTER);
-        this.commandSet.add(Command.LOGIN);
-        this.commandSet.add(Command.EXIT);
     }
 
     private static class SessionState {
-        private ClientState state = ClientState.ANONYMOUS;
+        private ClientState state = new ClientState();
         private String username;
+        private SortedSet<Command> commandSet; // The set of currently valid commands
 
-        public SessionState() {}
+        public SessionState() {
+            // Initialize the valid commands
+            this.commandSet = new TreeSet<>();
+            this.commandSet.add(Command.REGISTER);
+            this.commandSet.add(Command.LOGIN);
+            this.commandSet.add(Command.EXIT);
+        }
 
         public String getUsername() {
             return this.username;
         }
 
+        public SortedSet<Command> getCommands() {
+            return this.commandSet;
+        }
+
+        public Command getCommandByIndex(int i, Command defaultValue) {
+            for (Command curr : this.commandSet) {
+                --i;
+                if (i == 0)
+                    return curr;
+            }
+            return defaultValue;
+        }
+
+        public Command getCommandByIndex(int i) {
+            return this.getCommandByIndex(i, Command.INVALID);
+        }
+
         public void login(String username) {
-            this.state = ClientState.LOGGED;
+            this.state.login();
             this.username = username;
+
+            this.commandSet.remove(Command.LOGIN);
+            this.commandSet.remove(Command.REGISTER);
+            this.commandSet.add(Command.LOGOUT);
+            this.commandSet.add(Command.PLAY);
+        }
+
+        public void registered() {
+            this.commandSet.add(Command.LOGIN);
+            this.commandSet.remove(Command.REGISTER);
         }
 
         public void logout() {
-            this.state = ClientState.ANONYMOUS;
+            this.state.logout();
             this.username = null;
+
+            this.commandSet.add(Command.LOGIN);
+            this.commandSet.add(Command.REGISTER);
+            this.commandSet.remove(Command.LOGOUT);
+            this.commandSet.remove(Command.PLAY);
+        }
+
+        public void startGame() {
+            this.commandSet.remove(Command.PLAY);
         }
 
         public boolean isLogged() {
-            return this.state == ClientState.LOGGED;
+            return this.state.isLogged();
+        }
+    }
+
+    /**
+     * Simple utility class that holds a message status code and the optional message
+     */
+    private static class Message {
+        public MessageStatus status;
+        public ByteBuffer message;
+
+        public Message() {}
+
+        public Message(MessageStatus status) {
+            this.status = status;
+        }
+
+        public Message(MessageStatus status, ByteBuffer message) {
+            this.status = status;
+            this.message = message;
         }
     }
 
@@ -85,7 +140,7 @@ public class ClientCLI {
     private void printActions() {
         this.out.println("\nChoose one of these actions");
         int k = 1;
-        for (Command c : this.commandSet) {
+        for (Command c : this.session.getCommands()) {
             String s = c.toString().toLowerCase();
             this.out.format("  %d. %s\n", k, s.substring(0, 1).toUpperCase() + s.substring(1));
             ++k;
@@ -139,17 +194,17 @@ public class ClientCLI {
             this.out.format("[%s] > ", this.session.getUsername());
         else
             this.out.print("> ");
+
+        // Read command from input
         Command command = Command.INVALID;
         try {
             int c = Integer.parseInt(this.in.nextLine());
-            for (Command curr : this.commandSet) {
-                --c;
-                if (c == 0)
-                    command = curr;
-            }
+            command = this.session.getCommandByIndex(c);
         } catch (NumberFormatException e) {
             command = Command.INVALID;
         }
+
+        // Repeat until a valid command is read
         while (!this.isValidCommand(command)) {
             this.out.println("Invalid command!");
             this.out.println(
@@ -161,11 +216,7 @@ public class ClientCLI {
             command = Command.INVALID;
             try {
                 int c = Integer.parseInt(this.in.nextLine());
-                for (Command curr : this.commandSet) {
-                    --c;
-                    if (c == 0)
-                        command = curr;
-                }
+                command = this.session.getCommandByIndex(c);
             } catch (NumberFormatException e) {
                 command = Command.INVALID;
             }
@@ -181,7 +232,7 @@ public class ClientCLI {
      * @return true if the command is valid, false otherwise
      */
     private boolean isValidCommand(Command command) {
-        return this.commandSet.contains(command);
+        return this.session.getCommands().contains(command);
     }
 
     /**
@@ -219,6 +270,29 @@ public class ClientCLI {
         return MessageStatus.fromByte(message[0]);
     }
 
+    private Message socketGetMessage() throws IOException {
+        DataInputStream input =
+                new DataInputStream(new BufferedInputStream(this.socket.getInputStream()));
+        int fullSize = input.readInt();
+
+        // Read the status code (1 byte)
+        Message ret = new Message(MessageStatus.fromByte((byte) input.read()));
+
+        // Read the optional message size (4 bytes)
+        int messageSize = input.readInt();
+
+        // Consistency check
+        if (messageSize != fullSize - Integer.BYTES - 1) {
+            ret.status = MessageStatus.GENERIC_ERROR;
+            return ret;
+        }
+
+        // Read the rest of the message
+        ret.message = ByteBuffer.wrap(input.readNBytes(messageSize));
+
+        return ret;
+    }
+
     private void register() throws RemoteException {
         // Check username & password
         String username = this.readUntil(
@@ -236,8 +310,9 @@ public class ClientCLI {
             RMIStatus result = service.register(username, password);
             if (result == RMIStatus.SUCCESS) {
                 this.out.println("Successfully registered!");
-                this.commandSet.add(Command.LOGIN);
-                this.commandSet.remove(Command.REGISTER);
+
+                // Update session
+                this.session.registered();
             } else if (result == RMIStatus.USER_TAKEN) {
                 this.out.println("Username already taken.");
             } else {
@@ -255,7 +330,7 @@ public class ClientCLI {
         String password = this.readUntil((input) -> input.length() < 256,
                 "The password is too large.", "Enter your password > ");
 
-        // Prepare the login command
+        // Prepare the login message
         ByteBuffer data = ByteBuffer.allocate(ClientCLI.SOCKET_MSG_MAX_SIZE);
         data.put(Action.LOGIN.getValue());
         data.put((byte) username.length());
@@ -276,11 +351,6 @@ public class ClientCLI {
 
                 // Update the session state
                 this.session.login(username);
-
-                // Update the command set
-                this.commandSet.remove(Command.LOGIN);
-                this.commandSet.remove(Command.REGISTER);
-                this.commandSet.add(Command.LOGOUT);
             } else if (status == MessageStatus.INVALID_USER) {
                 this.out.println("Wrong username or password.");
             } else {
@@ -295,7 +365,7 @@ public class ClientCLI {
     }
 
     private void logout() {
-        // Prepare the logout command
+        // Prepare the logout message
         ByteBuffer data = ByteBuffer.allocate(ClientCLI.SOCKET_MSG_MAX_SIZE);
         data.put(Action.LOGOUT.getValue());
         data.flip();
@@ -312,17 +382,43 @@ public class ClientCLI {
 
                 // Update the session state
                 this.session.logout();
-
-                // Update the command set
-                this.commandSet.add(Command.LOGIN);
-                this.commandSet.add(Command.REGISTER);
-                this.commandSet.remove(Command.LOGOUT);
             } else {
                 this.out.println("An error happened. Try again later.");
             }
         } catch (IOException e) {
-            // TODO
-            // this.out.println("I/O during server communication.");
+            e.printStackTrace();
+            this.exit(1);
+        }
+    }
+
+    private void play() {
+        // Prepare the play message
+        ByteBuffer data = ByteBuffer.allocate(ClientCLI.SOCKET_MSG_MAX_SIZE);
+        data.put(Action.PLAY.getValue());
+        data.flip();
+
+        try {
+            this.socketWrite(data);
+
+            // Wait for the response
+            Message message = this.socketGetMessage();
+
+            // Success
+            if (message.status == MessageStatus.SUCCESS) {
+                this.out.println("Starting the game");
+
+                // Parse the message
+                int wordSize = message.message.getInt();
+                int nTries = message.message.getInt();
+
+                // Update the session state
+                this.session.startGame();
+
+                this.out.format("Word size %d.  Number of tries left %d\n", wordSize, nTries);
+            } else {
+                this.out.println("An error happened. Try again later.");
+            }
+        } catch (IOException e) {
             e.printStackTrace();
             this.exit(1);
         }
@@ -335,6 +431,9 @@ public class ClientCLI {
                 break;
             case LOGIN:
                 this.login();
+                break;
+            case PLAY:
+                this.play();
                 break;
             case LOGOUT:
                 this.logout();
