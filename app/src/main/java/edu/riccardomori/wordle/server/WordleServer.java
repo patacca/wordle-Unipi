@@ -71,7 +71,8 @@ public final class WordleServer implements serverRMI {
         public ConnectionState(WordleServerCore backend, int readCapacity, int writeCapacity) {
             this.backend = backend;
             this.readBuffer = ByteBuffer.allocate(readCapacity);
-            this.writeBuffer = ByteBuffer.allocate(writeCapacity);
+            // writeBuffer capacity = Size of the packet + Max capacity
+            this.writeBuffer = ByteBuffer.allocate(Integer.BYTES + writeCapacity);
         }
 
         /**
@@ -85,6 +86,19 @@ public final class WordleServer implements serverRMI {
             this.readMessageSize = -1;
 
             return retBuff;
+        }
+
+        /**
+         * Save the input message in the internal buffer for writable data. It encapsulates the
+         * message in the following packet: [SIZE] [MESSAGE]
+         * 
+         * @param data The input data
+         */
+        public void setWritableMessage(ByteBuffer message) {
+            this.writeBuffer.clear();
+            this.writeBuffer.putInt(message.limit());
+            this.writeBuffer.put(message);
+            this.writeBuffer.flip();
         }
     }
 
@@ -233,7 +247,9 @@ public final class WordleServer implements serverRMI {
                         // Handle new connection
                         this.handleNewConnection(socket, selector);
                     } else if (key.isReadable()) {
-                        this.handleRead(key, selector);
+                        this.handleRead(key);
+                    } else if (key.isWritable()) {
+                        this.handleWrite(key);
                     }
 
                     iter.remove();
@@ -278,11 +294,10 @@ public final class WordleServer implements serverRMI {
      * the actual size of MESSAGE.
      * 
      * @param key The selection key
-     * @param selector The selector
      * @throws IOException
      */
     // @formatter:on
-    private void handleRead(SelectionKey key, Selector selector) throws IOException {
+    private void handleRead(SelectionKey key) throws IOException {
         SocketChannel socket = (SocketChannel) key.channel();
         ConnectionState state = (ConnectionState) key.attachment();
 
@@ -328,6 +343,33 @@ public final class WordleServer implements serverRMI {
                     "Received a message longer than what previously advertised (%d over %d bytes)",
                     size, state.readMessageSize));
 
-        state.backend.handleMessage(state.finishRead());
+        // Handle the message and update the interest ops
+        int newInterestOps = state.backend.handleMessage(state.finishRead());
+        if ((newInterestOps & SelectionKey.OP_WRITE) != 0)
+            state.setWritableMessage(state.backend.getWriteBuffer());
+        key.interestOps(newInterestOps);
+    }
+
+    // @formatter:off
+    /**
+     * Handles writing a message in the socket. All the messages must be in the format:
+     *      [SIZE] [MESSAGE]
+     * 
+     * SIZE is always the size of a Integer (4 bytes) and it's encoded in big endian SIZE represents
+     * the actual size of MESSAGE.
+     * 
+     * @param key The selection key
+     * @throws IOException
+     */
+    // @formatter:on
+    private void handleWrite(SelectionKey key) throws IOException {
+        SocketChannel socket = (SocketChannel) key.channel();
+        ConnectionState state = (ConnectionState) key.attachment();
+
+        // Write data in the socket
+        socket.write(state.writeBuffer);
+        if (!state.writeBuffer.hasRemaining()) {
+            key.interestOps(SelectionKey.OP_READ);
+        }
     }
 }

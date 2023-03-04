@@ -20,12 +20,17 @@ public class WordleServerCore {
 
     public WordleServerCore() {
         this.interestOps = SelectionKey.OP_READ;
+        this.writeBuf = ByteBuffer.allocate(WordleServer.SOCKET_MSG_MAX_SIZE);
 
         this.logger = Logger.getLogger("Wordle");
     }
 
     public int getInterestOps() {
-        return interestOps;
+        return this.interestOps;
+    }
+
+    public ByteBuffer getWriteBuffer() {
+        return this.writeBuf;
     }
 
     /**
@@ -35,8 +40,9 @@ public class WordleServerCore {
      * @param code The return code that is set in the message
      */
     private void sendMessage(MessageStatus code) {
-        this.writeBuf = ByteBuffer.allocate(1);
+        this.writeBuf.clear();
         this.writeBuf.put(code.getValue());
+        this.writeBuf.flip();
         this.interestOps = SelectionKey.OP_WRITE;
     }
 
