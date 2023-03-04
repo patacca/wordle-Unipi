@@ -19,6 +19,7 @@ import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.function.Predicate;
 import edu.riccardomori.wordle.protocol.Action;
+import edu.riccardomori.wordle.protocol.ClientState;
 import edu.riccardomori.wordle.protocol.MessageStatus;
 import edu.riccardomori.wordle.rmi.RMIConstants;
 import edu.riccardomori.wordle.rmi.RMIStatus;
@@ -29,11 +30,12 @@ public class ClientCLI {
     private final Scanner in = new Scanner(System.in);
     private SortedSet<Command> commandSet;
 
+    private final int socketTimeout = 10000; // Timeout for reading on the socket
     private String serverHost; // The server host
     private int serverPort; // The port of the server socket
     private int rmiPort; // The port of the RMI server
     private Socket socket; // The socket for communicating with the server
-    private final int socketTimeout = 10000; // Timeout for reading on the socket
+    private SessionState session = new SessionState(); // Describes the state of the current session
 
     public ClientCLI(String host, int serverPort, int rmiPort) {
         this.serverHost = host;
@@ -45,6 +47,26 @@ public class ClientCLI {
         this.commandSet.add(Command.REGISTER);
         this.commandSet.add(Command.LOGIN);
         this.commandSet.add(Command.EXIT);
+    }
+
+    private static class SessionState {
+        private ClientState state = ClientState.ANONYMOUS;
+        private String username;
+
+        public SessionState() {}
+
+        public String getUsername() {
+            return this.username;
+        }
+
+        public void login(String username) {
+            this.state = ClientState.LOGGED;
+            this.username = username;
+        }
+
+        public boolean isLogged() {
+            return this.state == ClientState.LOGGED;
+        }
     }
 
     private void exit(int ret) {
@@ -105,7 +127,10 @@ public class ClientCLI {
      * @return A valid command
      */
     private Command readCommand() {
-        this.out.print("> ");
+        if (this.session.isLogged())
+            this.out.format("[%s] > ", this.session.getUsername());
+        else
+            this.out.print("> ");
         Command command = Command.INVALID;
         try {
             int c = Integer.parseInt(this.in.nextLine());
@@ -121,7 +146,10 @@ public class ClientCLI {
             this.out.println("Invalid command!");
             this.out.println(
                     "Please enter only the number that represents the action you want to do");
-            this.out.print("> ");
+            if (this.session.isLogged())
+                this.out.format("[%s] > ", this.session.getUsername());
+            else
+                this.out.print("> ");
             command = Command.INVALID;
             try {
                 int c = Integer.parseInt(this.in.nextLine());
@@ -237,7 +265,13 @@ public class ClientCLI {
             // Success
             if (status == MessageStatus.SUCCESS) {
                 this.out.println("Logged in successfully!");
+
+                // Update the session state
+                this.session.login(username);
+
+                // Update the command set
                 this.commandSet.remove(Command.LOGIN);
+                this.commandSet.remove(Command.REGISTER);
             } else if (status == MessageStatus.INVALID_USER) {
                 this.out.println("Wrong username or password.");
             } else {
