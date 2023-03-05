@@ -5,6 +5,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
+import edu.riccardomori.wordle.client.frontend.ClientCLI;
 
 public class ClientMain {
     private static final String configFile = "ClientMain.properties";
@@ -23,6 +24,7 @@ public class ClientMain {
             System.exit(1);
         }
 
+        // Load frontend
         ClientCLI client = new ClientCLI(ClientMain.serverHost, ClientMain.serverPort, ClientMain.rmiPort);
 
         client.run();

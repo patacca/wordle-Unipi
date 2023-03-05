@@ -1,4 +1,4 @@
-package edu.riccardomori.wordle.client;
+package edu.riccardomori.wordle.client.backend;
 
 import java.util.Arrays;
 import java.util.Map;
