@@ -67,7 +67,11 @@ public class SessionState {
     }
 
     public void startGame() {
-        this.commandSet.remove(Command.PLAY);
+        this.state.play();
+    }
+
+    public void stopGame() {
+        this.state.stopPlaying();
     }
 
     public boolean isLogged() {

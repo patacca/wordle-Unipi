@@ -21,6 +21,10 @@ public class ClientState {
         this.value |= ClientState.PLAYING;
     }
 
+    public void stopPlaying() {
+        this.value &= ~ClientState.PLAYING;
+    }
+
     public boolean isLogged() {
         return (this.value & ClientState.LOGGED) != 0;
     }
