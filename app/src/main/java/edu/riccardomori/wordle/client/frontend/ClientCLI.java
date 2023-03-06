@@ -6,9 +6,11 @@ import java.util.function.Predicate;
 import edu.riccardomori.wordle.client.backend.ClientBackend;
 import edu.riccardomori.wordle.client.backend.Command;
 import edu.riccardomori.wordle.client.backend.GameDescriptor;
+import edu.riccardomori.wordle.client.backend.GuessDescriptor;
 import edu.riccardomori.wordle.client.backend.SessionState;
 import edu.riccardomori.wordle.client.backend.exceptions.*;
 
+// TODO separate between backend Commands and frontend commands
 public class ClientCLI implements ClientFrontend {
     private final PrintStream out = System.out;
     private final Scanner in = new Scanner(System.in);
@@ -17,6 +19,8 @@ public class ClientCLI implements ClientFrontend {
     private ClientBackend backend; // The backend implementation of the client
 
     private String serverHost; // The server host
+    private int triesLeft;
+    private int wordLen;
 
     public ClientCLI(String host, int serverPort, int rmiPort) {
         this.backend = new ClientBackend(host, serverPort, rmiPort);
@@ -196,21 +200,72 @@ public class ClientCLI implements ClientFrontend {
     }
 
     private void play() {
-        // Call backend
-        try {
-            GameDescriptor descriptor = this.backend.startGame();
+        // If not already playing then start new game
+        if (!this.session.isPlaying()) {
+            // Call backend
+            try {
+                GameDescriptor descriptor = this.backend.startGame();
 
-            this.out.println("Starting the game");
+                this.out.println("Starting the game");
 
-            // Update the session state
-            this.session.startGame();
+                // Update the session state
+                this.session.startGame();
+                this.wordLen = descriptor.wordSize;
+                this.triesLeft = descriptor.tries;
+            } catch (GenericError e) {
+                this.out.println("An error happened. Try again later.");
+            } catch (IOError e) {
+                this.out.println("I/O error during server communication.");
+            }
+        }
 
-            this.out.format("Word size %d.  Number of tries left %d\n", descriptor.wordSize,
-                    descriptor.tries);
-        } catch (GenericError e) {
-            this.out.println("An error happened. Try again later.");
-        } catch (IOError e) {
-            this.out.println("I/O error during server communication.");
+        this.out.format("Word size %d.  Number of tries left %d\n", this.wordLen, this.triesLeft);
+        this.out.println("\n? means the letter is right but it is in a wrong position");
+        this.out.println("* means the letter is right and in the correct position");
+        this.out.println("\nGuess the word, good luck!");
+
+        boolean won = false;
+        while (this.triesLeft > 0 && !won) {
+            // Read the word in lower case
+            this.out.println("`b` to go back");
+            String prefix = String.format("[%d] > ", this.triesLeft);
+            String regex = String.format("^[a-zA-Z]{%d}$", this.wordLen);
+            String word = this.readUntil((input) -> input.equals("b") || input.matches(regex),
+                    "Invalid word\n", prefix).toLowerCase();
+
+            // Stop playing
+            if (word.equals("b"))
+                break;
+
+            // Call the backend with word
+            try {
+                GuessDescriptor result = this.backend.sendWord(word);
+
+                this.triesLeft = result.triesLeft;
+                won = false;
+
+                if (!won) {
+                    // Show the hints
+                    StringBuilder sb = new StringBuilder();
+                    for (int k = 0; k < prefix.length() + this.wordLen; ++k)
+                        sb.append(' ');
+                    for (int p : result.correct)
+                        sb.setCharAt(prefix.length() + p, '*');
+                    for (int p : result.partial)
+                        sb.setCharAt(prefix.length() + p, '?');
+                    sb.append('\n');
+                    this.out.println(sb.toString());
+                } else {
+                    this.out.println("You WON!");
+                }
+
+            } catch (InvalidWordException e) {
+                this.out.println("Invalid word\n");
+            } catch (GenericError e) {
+                e.printStackTrace();
+            } catch (IOError e) {
+                e.printStackTrace();
+            }
         }
     }
 
