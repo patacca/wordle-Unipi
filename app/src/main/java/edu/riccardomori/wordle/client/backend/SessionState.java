@@ -73,4 +73,8 @@ public class SessionState {
     public boolean isLogged() {
         return this.state.isLogged();
     }
+
+    public boolean isPlaying() {
+        return this.state.isPlaying();
+    }
 }
