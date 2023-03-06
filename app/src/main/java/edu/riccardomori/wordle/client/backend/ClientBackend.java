@@ -182,7 +182,7 @@ public class ClientBackend {
      */
     public GameDescriptor startGame() throws GenericError, IOError {
         // Prepare the play message
-        ByteBuffer data = ByteBuffer.allocate(ClientBackend.SOCKET_MSG_MAX_SIZE);
+        ByteBuffer data = ByteBuffer.allocate(1);
         data.put(Action.PLAY.getValue());
         data.flip();
 
@@ -215,7 +215,7 @@ public class ClientBackend {
      */
     public void logout() throws GenericError, IOError {
         // Prepare the logout message
-        ByteBuffer data = ByteBuffer.allocate(ClientBackend.SOCKET_MSG_MAX_SIZE);
+        ByteBuffer data = ByteBuffer.allocate(1);
         data.put(Action.LOGOUT.getValue());
         data.flip();
 
