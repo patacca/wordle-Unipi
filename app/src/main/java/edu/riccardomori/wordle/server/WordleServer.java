@@ -11,19 +11,17 @@ import java.io.Writer;
 import java.net.InetSocketAddress;
 import java.net.StandardSocketOptions;
 import java.nio.ByteBuffer;
-import java.nio.CharBuffer;
-import java.nio.channels.FileChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Paths;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
@@ -70,6 +68,8 @@ public final class WordleServer implements serverRMI {
     private ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
     private Map<String, String> users;
     private volatile String secretWord; // Secret Word
+    private volatile long sWTime;
+    private HashSet<String> words = new HashSet<>();
 
 
     /**
@@ -168,6 +168,21 @@ public final class WordleServer implements serverRMI {
     }
 
     /**
+     * Load all the possible words in memory
+     */
+    private void loadWords() {
+        try (BufferedReader input =
+                new BufferedReader(new FileReader(this.wordsDb, StandardCharsets.UTF_8))) {
+            String line;
+            while ((line = input.readLine()) != null)
+                this.words.add(line);
+        } catch (IOException e) {
+            e.printStackTrace();
+            System.exit(1);
+        }
+    }
+
+    /**
      * Register all the RMI services
      */
     private void runRMIServer() {
@@ -182,48 +197,18 @@ public final class WordleServer implements serverRMI {
     }
 
     private void runScheduler() {
-
-        // Change the secret word at a specified rate
+        // Change the secret word at the specified rate
         this.scheduler.scheduleAtFixedRate(() -> {
-            try (FileChannel fc = FileChannel.open(Paths.get(this.wordsDb))) {
-                long fileSize = fc.size();
                 String newWord;
-
-                // Read a new random secret word that must be different from the previous one
                 do {
-                    // Seek somewhere randomly in the file
-                    long pos = ThreadLocalRandom.current().nextLong(fileSize);
-                    fc.position(pos);
-
-                    // Read the the word that is between two \n char or if we are at the beginning
-                    // of the file (pos == 0) read the first word
-                    ByteBuffer buffer = ByteBuffer.allocate((WordleServer.WORD_MAX_SIZE + 1) * 2);
-                    fc.read(buffer);
-                    buffer.flip();
-                    StringBuilder sb = new StringBuilder();
-                    boolean append = (pos == 0);
-                    CharBuffer charBuf = StandardCharsets.UTF_8.decode(buffer);
-                    while (charBuf.hasRemaining()) {
-                        char ch = charBuf.get();
-                        if (ch == '\n') {
-                            if (append)
-                                break;
-                            append = true;
-                        }
-                        if (append && ch != '\n')
-                            sb.append(ch);
-                    }
-                    newWord = sb.toString();
+                int randPos = ThreadLocalRandom.current().nextInt(this.words.size());
+                newWord = this.words.stream().skip(randPos).findFirst().get();
                 } while (newWord.equals(this.secretWord));
 
                 // Update new secret word
                 this.secretWord = newWord;
+            this.sWTime = System.currentTimeMillis();
                 this.logger.info(String.format("Secret word changed to `%s`", newWord));
-            } catch (IOException e) {
-                this.logger.severe(
-                        String.format("Secret words file `%s` cannot be read.", this.wordsDb));
-                System.exit(1);
-            }
         }, 0, this.swRate, TimeUnit.SECONDS);
     }
 
@@ -301,6 +286,9 @@ public final class WordleServer implements serverRMI {
         // Check that all the parameters were configured
         if (!this.isConfigured)
             throw new RuntimeException("The server must be configured before running.");
+
+        // Load words
+        this.loadWords();
 
         // Run the scheduled services
         this.runScheduler();
