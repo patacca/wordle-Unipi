@@ -235,12 +235,24 @@ public class UserSession {
 
         // Spend a try
         this.triesLeft--;
+
+        // If there are no available tries left, end the game
         if (this.triesLeft == 0)
             this.state.stopPlaying();
 
         // Client won
         if (this.lastPlayedSecretWord.equals(guessWord)) {
-            // congratz
+            ByteBuffer sMsg = ByteBuffer.allocate(3 + guessWord.length());
+            sMsg.put((byte) this.triesLeft);
+            sMsg.put((byte) guessWord.length()); // correct size
+            sMsg.put((byte) 0); // partial size
+            for (int k = 0; k < guessWord.length(); ++k)
+                sMsg.put((byte) k);
+            sMsg.flip();
+
+            this.state.stopPlaying();
+
+            this.sendMessage(MessageStatus.SUCCESS, sMsg);
             return;
         }
 
@@ -267,7 +279,9 @@ public class UserSession {
         }
 
         // Forge message
-        ByteBuffer sMsg = ByteBuffer.allocate(3 + correct.size() + partial.size());
+        // Let's make the buffer bigger than necessary to avoid unnecessary calculations
+        ByteBuffer sMsg = ByteBuffer.allocate(
+                3 + correct.size() + partial.size() + 4 * this.lastPlayedSecretWord.length());
         sMsg.put((byte) this.triesLeft);
         sMsg.put((byte) correct.size());
         sMsg.put((byte) partial.size());
@@ -275,6 +289,11 @@ public class UserSession {
             sMsg.put((byte) p);
         for (int p : partial)
             sMsg.put((byte) p);
+
+        // No more tries left. Send the secret word
+        if (this.triesLeft == 0)
+            sMsg.put(this.lastPlayedSecretWord.getBytes(StandardCharsets.UTF_8));
+
         sMsg.flip();
 
         this.sendMessage(MessageStatus.SUCCESS, sMsg);

@@ -246,6 +246,7 @@ public class ClientCLI implements ClientFrontend {
 
         // Main playing loop
         boolean won = false;
+        String secretWord = "";
         while (this.triesLeft > 0 && !won) {
             // Read the word in lower case
             this.out.println("`b` to go back");
@@ -263,6 +264,7 @@ public class ClientCLI implements ClientFrontend {
                 GuessDescriptor result = this.backend.sendWord(word);
 
                 this.triesLeft = result.triesLeft;
+                secretWord = result.secretWord;
 
                 // Show the hints
                 StringBuilder sb = new StringBuilder();
@@ -276,7 +278,7 @@ public class ClientCLI implements ClientFrontend {
                 this.out.println(sb.toString());
 
                 // Check if we won the game
-                won = result.correct.length == word.length();
+                won = (result.correct.length == word.length());
 
             } catch (InvalidWordException e) {
                 this.out.println("Invalid word\n");
@@ -290,6 +292,7 @@ public class ClientCLI implements ClientFrontend {
         if (won) {
             this.out.println("Correct! Congratulations, you found the secret word!");
             this.out.println("Stats:");
+            // Fetch stats
             this.out.format("  games played: %d\n", 1);
             this.out.format("  games won: %d%%\n", 1);
             this.out.format("  current winning streak: %d\n", 1);
@@ -298,7 +301,7 @@ public class ClientCLI implements ClientFrontend {
             this.session.stopGame();
         } else if (this.triesLeft == 0) {
             this.out.println("Sorry but you used all the available tries.");
-            this.out.format("The secret word was `%s`\n\n", "xxx");
+            this.out.format("The secret word was `%s`\n\n", secretWord);
             this.session.stopGame();
         }
     }
