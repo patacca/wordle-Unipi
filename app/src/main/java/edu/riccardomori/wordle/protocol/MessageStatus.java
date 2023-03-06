@@ -6,6 +6,8 @@ public enum MessageStatus {
     INVALID_USER((byte) 2),
     ACTION_UNAUTHORIZED((byte) 3),
     ALREADY_PLAYED((byte) 4),
+    NO_TRIES_LEFT((byte) 5),
+    INVALID_WORD((byte) 6),
     GENERIC_ERROR((byte) 0xff);
     // @formatter:on
 
@@ -25,6 +27,10 @@ public enum MessageStatus {
                 return ACTION_UNAUTHORIZED;
             case 4:
                 return ALREADY_PLAYED;
+            case 5:
+                return NO_TRIES_LEFT;
+            case 6:
+                return INVALID_WORD;
             default:
                 return GENERIC_ERROR;
         }

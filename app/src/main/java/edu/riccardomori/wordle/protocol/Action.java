@@ -1,7 +1,13 @@
 package edu.riccardomori.wordle.protocol;
 
 public enum Action {
-    LOGIN((byte) 0), LOGOUT((byte) 1), PLAY((byte) 2), UNKNOWN((byte) 0xff);
+    // @formatter:off
+    LOGIN((byte) 0),
+    LOGOUT((byte) 1),
+    PLAY((byte) 2),
+    SEND_WORD((byte) 3),
+    UNKNOWN((byte) 0xff);
+    // @formatter:on
 
     private final byte value;
 
@@ -17,6 +23,8 @@ public enum Action {
                 return LOGOUT;
             case 2:
                 return PLAY;
+            case 3:
+                return SEND_WORD;
             default:
                 return UNKNOWN;
         }
