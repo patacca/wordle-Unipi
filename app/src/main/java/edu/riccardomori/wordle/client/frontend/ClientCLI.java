@@ -1,6 +1,7 @@
 package edu.riccardomori.wordle.client.frontend;
 
 import java.io.PrintStream;
+import java.time.Duration;
 import java.util.Scanner;
 import java.util.function.Predicate;
 import edu.riccardomori.wordle.client.backend.ClientBackend;
@@ -173,6 +174,9 @@ public class ClientCLI implements ClientFrontend {
             this.session.login(username);
         } catch (InvalidUserException e) {
             this.out.println("Wrong username or password.");
+        } catch (AlreadyLoggedException e) {
+            this.out.println(
+                    "You are already logged in. Only one session per user is allowed at any time.");
         } catch (UnknownHostException e) {
             this.out.format("Hostname %s doesn't seem to exist.\n", this.serverHost);
             this.exit(1);
@@ -199,31 +203,48 @@ public class ClientCLI implements ClientFrontend {
         }
     }
 
+    private boolean startGame() {
+        // Call backend
+        try {
+            GameDescriptor descriptor = this.backend.startGame();
+
+            this.out.println("Starting the game");
+
+            // Update the session state
+            this.session.startGame();
+            this.wordLen = descriptor.wordSize;
+            this.triesLeft = descriptor.tries;
+
+            return true;
+
+        } catch (AlreadyPlayedException e) {
+            long nextGameTime = e.getResult() - System.currentTimeMillis();
+            String waitingTime = Duration.ofMillis(nextGameTime).toString().substring(2)
+                    .replaceAll("(\\d[HMS])(?!$)", "$1 ").toLowerCase();
+
+            this.out.println("Sorry but you already played this game.");
+            this.out.format("The next game will be available in %s\n", waitingTime);
+        } catch (GenericError e) {
+            this.out.println("An error happened. Try again later.");
+        } catch (IOError e) {
+            this.out.println("I/O error during server communication.");
+        }
+
+        return false;
+    }
+
     private void play() {
         // If not already playing then start new game
-        if (!this.session.isPlaying()) {
-            // Call backend
-            try {
-                GameDescriptor descriptor = this.backend.startGame();
-
-                this.out.println("Starting the game");
-
-                // Update the session state
-                this.session.startGame();
-                this.wordLen = descriptor.wordSize;
-                this.triesLeft = descriptor.tries;
-            } catch (GenericError e) {
-                this.out.println("An error happened. Try again later.");
-            } catch (IOError e) {
-                this.out.println("I/O error during server communication.");
-            }
-        }
+        if (!this.session.isPlaying())
+            if (!this.startGame()) // If it didn't succeed stop immediately
+                return;
 
         this.out.format("Word size %d.  Number of tries left %d\n", this.wordLen, this.triesLeft);
         this.out.println("\n? means the letter is right but it is in a wrong position");
         this.out.println("* means the letter is right and in the correct position");
         this.out.println("\nGuess the word, good luck!");
 
+        // Main playing loop
         boolean won = false;
         while (this.triesLeft > 0 && !won) {
             // Read the word in lower case
@@ -242,22 +263,20 @@ public class ClientCLI implements ClientFrontend {
                 GuessDescriptor result = this.backend.sendWord(word);
 
                 this.triesLeft = result.triesLeft;
-                won = false;
 
-                if (!won) {
-                    // Show the hints
-                    StringBuilder sb = new StringBuilder();
-                    for (int k = 0; k < prefix.length() + this.wordLen; ++k)
-                        sb.append(' ');
-                    for (int p : result.correct)
-                        sb.setCharAt(prefix.length() + p, '*');
-                    for (int p : result.partial)
-                        sb.setCharAt(prefix.length() + p, '?');
-                    sb.append('\n');
-                    this.out.println(sb.toString());
-                } else {
-                    this.out.println("You WON!");
-                }
+                // Show the hints
+                StringBuilder sb = new StringBuilder();
+                for (int k = 0; k < prefix.length() + this.wordLen; ++k)
+                    sb.append(' ');
+                for (int p : result.correct)
+                    sb.setCharAt(prefix.length() + p, '*');
+                for (int p : result.partial)
+                    sb.setCharAt(prefix.length() + p, '?');
+                sb.append('\n');
+                this.out.println(sb.toString());
+
+                // Check if we won the game
+                won = result.correct.length == word.length();
 
             } catch (InvalidWordException e) {
                 this.out.println("Invalid word\n");
@@ -266,6 +285,21 @@ public class ClientCLI implements ClientFrontend {
             } catch (IOError e) {
                 e.printStackTrace();
             }
+        }
+
+        if (won) {
+            this.out.println("Correct! Congratulations, you found the secret word!");
+            this.out.println("Stats:");
+            this.out.format("  games played: %d\n", 1);
+            this.out.format("  games won: %d%%\n", 1);
+            this.out.format("  current winning streak: %d\n", 1);
+            this.out.format("  best winning streak: %d\n", 1);
+            this.out.format("  user score: %d\n", 1);
+            this.session.stopGame();
+        } else if (this.triesLeft == 0) {
+            this.out.println("Sorry but you used all the available tries.");
+            this.out.format("The secret word was `%s`\n\n", "xxx");
+            this.session.stopGame();
         }
     }
 
