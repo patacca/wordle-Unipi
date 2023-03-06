@@ -176,6 +176,7 @@ public class UserSession {
         this.logger.info(String.format("User `%s`: action Logout", this.username));
 
         this.state.logout();
+        this.sessionIsActive = false;
         this.username = null;
 
         // Prepare the success message
