@@ -15,6 +15,7 @@ import java.rmi.registry.Registry;
 import edu.riccardomori.wordle.client.backend.exceptions.GenericError;
 import edu.riccardomori.wordle.client.backend.exceptions.IOError;
 import edu.riccardomori.wordle.client.backend.exceptions.InvalidUserException;
+import edu.riccardomori.wordle.client.backend.exceptions.InvalidWordException;
 import edu.riccardomori.wordle.client.backend.exceptions.ServerError;
 import edu.riccardomori.wordle.client.backend.exceptions.UnknownHostException;
 import edu.riccardomori.wordle.client.backend.exceptions.UserTakenException;
@@ -229,6 +230,42 @@ public class ClientBackend {
             if (status == MessageStatus.SUCCESS)
                 return;
             else
+                throw new GenericError();
+        } catch (IOException e) {
+            throw new IOError();
+        }
+    }
+
+    public GuessDescriptor sendWord(String word)
+            throws InvalidWordException, GenericError, IOError {
+        // Prepare the sendWord message
+        byte[] encodedWord = word.getBytes(StandardCharsets.UTF_8);
+        ByteBuffer data = ByteBuffer.allocate(1 + encodedWord.length);
+        data.put(Action.SEND_WORD.getValue());
+        data.put(encodedWord);
+        data.flip();
+
+        try {
+            this.socketWrite(data);
+
+            Message message = this.socketGetMessage();
+
+            if (message.status == MessageStatus.SUCCESS) {
+                // Parse the message
+                int triesLeft = message.message.get();
+                int correctSize = message.message.get();
+                int partialSize = message.message.get();
+                int[] correct = new int[correctSize];
+                int[] partial = new int[partialSize];
+                for (int k = 0; k < correctSize; ++k)
+                    correct[k] = message.message.get();
+                for (int k = 0; k < partialSize; ++k)
+                    partial[k] = message.message.get();
+
+                return new GuessDescriptor(triesLeft, correct, partial);
+            } else if (message.status == MessageStatus.INVALID_WORD) {
+                throw new InvalidWordException();
+            } else
                 throw new GenericError();
         } catch (IOException e) {
             throw new IOError();
