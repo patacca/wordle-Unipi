@@ -199,16 +199,16 @@ public final class WordleServer implements serverRMI {
     private void runScheduler() {
         // Change the secret word at the specified rate
         this.scheduler.scheduleAtFixedRate(() -> {
-                String newWord;
-                do {
+            String newWord;
+            do {
                 int randPos = ThreadLocalRandom.current().nextInt(this.words.size());
                 newWord = this.words.stream().skip(randPos).findFirst().get();
-                } while (newWord.equals(this.secretWord));
+            } while (newWord.equals(this.secretWord));
 
-                // Update new secret word
-                this.secretWord = newWord;
+            // Update new secret word
+            this.secretWord = newWord;
             this.sWTime = System.currentTimeMillis();
-                this.logger.info(String.format("Secret word changed to `%s`", newWord));
+            this.logger.info(String.format("Secret word changed to `%s`", newWord));
         }, 0, this.swRate, TimeUnit.SECONDS);
     }
 
@@ -276,6 +276,14 @@ public final class WordleServer implements serverRMI {
      */
     public String getCurrentWord() {
         return this.secretWord;
+    }
+
+    public boolean isValidWord(String word) {
+        return this.words.contains(word);
+    }
+
+    public long getNextSWTime() {
+        return this.sWTime + this.swRate;
     }
 
     /**
