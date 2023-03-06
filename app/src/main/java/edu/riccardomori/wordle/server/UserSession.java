@@ -14,17 +14,19 @@ import edu.riccardomori.wordle.protocol.ClientState;
 import edu.riccardomori.wordle.protocol.MessageStatus;
 import edu.riccardomori.wordle.server.WordleServer;
 
-public class WordleServerCore {
+public class UserSession {
     private int interestOps; // The interest set of operations as a bitmask
     private ClientState state = new ClientState();
     private Logger logger;
+    private boolean sessionIsActive = true; // Tells if the session is active or if it has been
+                                            // closed
 
     private String username; // The username of the client who is running this session
     private ByteBuffer writeBuf; // The buffer holding the writable data
     private String lastPlayedSecretWord; // Last played secret word
     private int triesLeft;
 
-    public WordleServerCore() {
+    public UserSession() {
         this.interestOps = SelectionKey.OP_READ;
         this.writeBuf = ByteBuffer.allocate(WordleServer.SOCKET_MSG_MAX_SIZE);
 
@@ -37,6 +39,14 @@ public class WordleServerCore {
 
     public ByteBuffer getWriteBuffer() {
         return this.writeBuf;
+    }
+
+    public void close() {
+        this.sessionIsActive = false;
+    }
+
+    public boolean isActive() {
+        return this.sessionIsActive;
     }
 
     /**
@@ -129,9 +139,29 @@ public class WordleServerCore {
 
         // Authenticate
         if (WordleServer.getInstance().checkLogin(username, password)) {
-            this.logger.finer(String.format("User `%s` logged in", username));
+            // Get the previous session if any
+            UserSession previousSession;
+            if ((previousSession = WordleServer.getInstance().getUserSession(username)) != null) {
+                // Cannot login more than once at the same time
+                if (previousSession.isActive()) {
+                    this.logger.finer(
+                            String.format("User `%s` already logged in. Rejected", username));
+                    this.sendMessage(MessageStatus.ALREADY_LOGGED);
+                    return;
+                }
+
+                // Restore the previous session
+                this.lastPlayedSecretWord = previousSession.lastPlayedSecretWord;
+            }
+
+            // Update the state
             this.state.login();
             this.username = username;
+
+            // Update the session
+            WordleServer.getInstance().saveUserSession(username, this);
+
+            this.logger.finer(String.format("User `%s` logged in", username));
 
             // Prepare the success message
             this.sendMessage(MessageStatus.SUCCESS);
@@ -152,15 +182,17 @@ public class WordleServerCore {
         this.sendMessage(MessageStatus.SUCCESS);
     }
 
-    private void playHandler() {
-        this.logger.info(String.format("User `%s`: action Play", this.username));
+    private void startGameHandler() {
+        this.logger.info(String.format("User `%s`: action playWORDLE", this.username));
 
         // Get the current word from server
         String secretWord = WordleServer.getInstance().getCurrentWord();
 
         // Check if player already played with that word
         if (secretWord.equals(this.lastPlayedSecretWord)) {
-            this.sendMessage(MessageStatus.ALREADY_PLAYED);
+            // Send the time to the next secret word
+            this.sendMessage(MessageStatus.ALREADY_PLAYED,
+                    WordleServer.getInstance().getNextSWTime());
             return;
         }
 
@@ -180,6 +212,8 @@ public class WordleServerCore {
     private void guessWordHandler(ByteBuffer msg) {
         // No leftover tries
         if (this.triesLeft == 0) {
+            this.state.stopPlaying();
+
             // Send the time to the next secret word
             this.sendMessage(MessageStatus.NO_TRIES_LEFT,
                     WordleServer.getInstance().getNextSWTime());
@@ -200,6 +234,8 @@ public class WordleServerCore {
 
         // Spend a try
         this.triesLeft--;
+        if (this.triesLeft == 0)
+            this.state.stopPlaying();
 
         // Client won
         if (this.lastPlayedSecretWord.equals(guessWord)) {
@@ -274,7 +310,7 @@ public class WordleServerCore {
                     break;
 
                 case PLAY:
-                    this.playHandler();
+                    this.startGameHandler();
                     break;
 
                 default:

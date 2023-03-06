@@ -67,6 +67,7 @@ public final class WordleServer implements serverRMI {
     // Scheduler for the current word generation
     private ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
     private Map<String, String> users;
+    private Map<String, UserSession> sessions = new HashMap<>();
     private volatile String secretWord; // Secret Word
     private volatile long sWTime;
     private HashSet<String> words = new HashSet<>();
@@ -76,8 +77,8 @@ public final class WordleServer implements serverRMI {
      * Private static class that is used to describe the state of a client connection.
      */
     private static class ConnectionState {
-        public WordleServerCore backend; // The backend object that handles the interaction with the
-                                         // client
+        public UserSession backend; // The backend object that handles the interaction with the
+                                    // client
         public ByteBuffer readBuffer; // Buffer used for reading
         public ByteBuffer writeBuffer; // Buffer used for writing
 
@@ -85,7 +86,7 @@ public final class WordleServer implements serverRMI {
         // If it is set to -1 it means that the message size is still unknown
         public int readMessageSize = -1;
 
-        public ConnectionState(WordleServerCore backend, int readCapacity, int writeCapacity) {
+        public ConnectionState(UserSession backend, int readCapacity, int writeCapacity) {
             this.backend = backend;
             this.readBuffer = ByteBuffer.allocate(readCapacity);
             // writeBuffer capacity = Size of the packet + Max capacity
@@ -283,7 +284,15 @@ public final class WordleServer implements serverRMI {
     }
 
     public long getNextSWTime() {
-        return this.sWTime + this.swRate;
+        return this.sWTime + this.swRate * 1000;
+    }
+
+    public UserSession getUserSession(String username) {
+        return this.sessions.getOrDefault(username, null);
+    }
+
+    public void saveUserSession(String username, UserSession session) {
+        this.sessions.put(username, session);
     }
 
     /**
@@ -363,10 +372,10 @@ public final class WordleServer implements serverRMI {
         // Set TCP Keep Alive mode
         socket.setOption(StandardSocketOptions.SO_KEEPALIVE, true);
 
-        WordleServerCore serverBackend = new WordleServerCore();
-        int interestOps = serverBackend.getInterestOps();
+        UserSession userSession = new UserSession();
+        int interestOps = userSession.getInterestOps();
 
-        socket.register(selector, interestOps, new ConnectionState(serverBackend,
+        socket.register(selector, interestOps, new ConnectionState(userSession,
                 WordleServer.SOCKET_MSG_MAX_SIZE, WordleServer.SOCKET_MSG_MAX_SIZE));
     }
 
@@ -391,6 +400,7 @@ public final class WordleServer implements serverRMI {
         // Connection closed by client
         if (nRead < 0) {
             this.logger.finer("Connection closed");
+            state.backend.close();
             socket.close();
             return;
         }
@@ -412,6 +422,7 @@ public final class WordleServer implements serverRMI {
                 this.logger.info(String.format(
                         "Message (%d bytes) exceeds maximum size. Closing connection.",
                         state.readMessageSize));
+                state.backend.close();
                 socket.close();
                 return;
             }
