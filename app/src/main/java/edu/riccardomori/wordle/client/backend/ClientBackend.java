@@ -12,6 +12,8 @@ import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
+import edu.riccardomori.wordle.client.backend.exceptions.AlreadyLoggedException;
+import edu.riccardomori.wordle.client.backend.exceptions.AlreadyPlayedException;
 import edu.riccardomori.wordle.client.backend.exceptions.GenericError;
 import edu.riccardomori.wordle.client.backend.exceptions.IOError;
 import edu.riccardomori.wordle.client.backend.exceptions.InvalidUserException;
@@ -142,9 +144,10 @@ public class ClientBackend {
      * @throws UnknownHostException Hostname unknown
      * @throws GenericError
      * @throws IOError
+     * @throws AlreadyLoggedException
      */
-    public void login(String username, String password)
-            throws InvalidUserException, UnknownHostException, GenericError, IOError {
+    public void login(String username, String password) throws InvalidUserException,
+            UnknownHostException, GenericError, IOError, AlreadyLoggedException {
         // Prepare the login message
         ByteBuffer data = ByteBuffer.allocate(ClientBackend.SOCKET_MSG_MAX_SIZE);
         data.put(Action.LOGIN.getValue());
@@ -164,6 +167,8 @@ public class ClientBackend {
                 return;
             else if (status == MessageStatus.INVALID_USER)
                 throw new InvalidUserException();
+            else if (status == MessageStatus.ALREADY_LOGGED)
+                throw new AlreadyLoggedException();
             else
                 throw new GenericError();
         } catch (java.net.UnknownHostException e) {
@@ -180,8 +185,9 @@ public class ClientBackend {
      *         availables tries
      * @throws GenericError
      * @throws IOError
+     * @throws AlreadyPlayedException
      */
-    public GameDescriptor startGame() throws GenericError, IOError {
+    public GameDescriptor startGame() throws GenericError, IOError, AlreadyPlayedException {
         // Prepare the play message
         ByteBuffer data = ByteBuffer.allocate(1);
         data.put(Action.PLAY.getValue());
@@ -200,6 +206,10 @@ public class ClientBackend {
                 int nTries = message.message.get();
 
                 return new GameDescriptor(wordSize, nTries);
+            } else if (message.status == MessageStatus.ALREADY_PLAYED) {
+                // fetch the next date
+                long nextGameTime = message.message.getLong();
+                throw new AlreadyPlayedException(nextGameTime);
             } else {
                 throw new GenericError();
             }
