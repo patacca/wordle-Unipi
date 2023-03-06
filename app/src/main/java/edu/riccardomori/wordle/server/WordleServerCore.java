@@ -44,14 +44,14 @@ public class WordleServerCore {
     private void sendMessage(MessageStatus code, ByteBuffer message) {
         this.writeBuf.clear();
         this.writeBuf.put(code.getValue());
-        this.writeBuf.putInt(message.limit());
         this.writeBuf.put(message);
         this.writeBuf.flip();
         this.interestOps = SelectionKey.OP_WRITE;
     }
 
     /**
-     * Encode the string message to bytes with utf-8 and calls `sendMessage(code, byteMessage)`
+     * Encode the string message to bytes with utf-8 and calls
+     * {@code sendMessage(code, byteMessage)}
      * 
      * @param code The return code that is set in the message
      * @param message An additional message to send
@@ -61,7 +61,7 @@ public class WordleServerCore {
     }
 
     /**
-     * Calls `sendMessage(code, "")`
+     * Calls {@code sendMessage(code, "")}
      * 
      * @param code The return code that is set in the message
      */

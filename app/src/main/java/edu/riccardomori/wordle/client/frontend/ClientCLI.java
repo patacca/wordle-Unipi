@@ -41,8 +41,8 @@ public class ClientCLI implements ClientFrontend {
     /**
      * Read a line from this.in until it is validated by the supplied predicate. It prints out the
      * error message when the predicate evaluates to false. It prints out (without a final newline)
-     * `prefix` when reading the line except for the first message that is `prefixFirst` instead of
-     * `prefix`. When a valid line is found, then it is returned.
+     * {@code prefix} when reading the line except for the first message that is {@code prefixFirst}
+     * instead of {@code prefix}. When a valid line is found, then it is returned.
      * 
      * @param pred The predicate that needs to validate the input
      * @param errorMsg The error message to print
@@ -64,7 +64,7 @@ public class ClientCLI implements ClientFrontend {
     }
 
     /**
-     * It is equivalent to `readUntil(pred, errorMsg, prefix, prefix)`
+     * It is equivalent to {@code readUntil(pred, errorMsg, prefix, prefix)}
      * 
      * @param pred The predicate that needs to validate the input
      * @param errorMsg The error message to print
