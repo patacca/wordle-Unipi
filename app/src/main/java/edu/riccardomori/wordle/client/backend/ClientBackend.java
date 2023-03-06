@@ -196,8 +196,8 @@ public class ClientBackend {
             // Success
             if (message.status == MessageStatus.SUCCESS) {
                 // Parse the message
-                int wordSize = message.message.getInt();
-                int nTries = message.message.getInt();
+                int wordSize = message.message.get();
+                int nTries = message.message.get();
 
                 return new GameDescriptor(wordSize, nTries);
             } else {

@@ -171,8 +171,8 @@ public class WordleServerCore {
 
         // Prepare the success message
         ByteBuffer msg = ByteBuffer.allocate(Integer.BYTES * 2);
-        msg.putInt(secretWord.length());
-        msg.putInt(this.triesLeft);
+        msg.put((byte) secretWord.length());
+        msg.put((byte) this.triesLeft);
         msg.flip();
         this.sendMessage(MessageStatus.SUCCESS, msg);
     }
