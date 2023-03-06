@@ -76,17 +76,8 @@ public class ClientBackend {
         // Read the status code (1 byte)
         Message ret = new Message(MessageStatus.fromByte((byte) input.read()));
 
-        // Read the optional message size (4 bytes)
-        int messageSize = input.readInt();
-
-        // Consistency check
-        if (messageSize != fullSize - Integer.BYTES - 1) {
-            ret.status = MessageStatus.GENERIC_ERROR;
-            return ret;
-        }
-
         // Read the rest of the message
-        ret.message = ByteBuffer.wrap(input.readNBytes(messageSize));
+        ret.message = ByteBuffer.wrap(input.readNBytes(fullSize - 1));
 
         return ret;
     }
