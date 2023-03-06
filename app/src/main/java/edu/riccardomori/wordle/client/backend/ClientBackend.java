@@ -272,7 +272,14 @@ public class ClientBackend {
                 for (int k = 0; k < partialSize; ++k)
                     partial[k] = message.message.get();
 
-                return new GuessDescriptor(triesLeft, correct, partial);
+                // No more tries. Read the secret word
+                if (triesLeft == 0 && message.message.hasRemaining()) {
+                    String secretWord = StandardCharsets.UTF_8.decode(message.message).toString();
+                    return new GuessDescriptor(triesLeft, correct, partial, secretWord);
+                } else {
+                    return new GuessDescriptor(triesLeft, correct, partial);
+                }
+
             } else if (message.status == MessageStatus.INVALID_WORD) {
                 throw new InvalidWordException();
             } else
