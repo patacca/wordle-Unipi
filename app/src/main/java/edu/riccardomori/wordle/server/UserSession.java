@@ -121,27 +121,39 @@ public class UserSession {
         this.logger.info("Action Login");
 
         // Parse message
-        int usernameSize = msg.get();
-        int passwordSize = msg.get();
-        byte[] usernameRaw = new byte[usernameSize];
-        byte[] passwordRaw = new byte[passwordSize];
+        String username;
+        String password;
         try {
+            int usernameSize = msg.get();
+            int passwordSize = msg.get();
+            byte[] usernameRaw = new byte[usernameSize];
+            byte[] passwordRaw = new byte[passwordSize];
             msg.get(usernameRaw, 0, usernameSize);
             msg.get(passwordRaw, 0, passwordSize);
+
+            username = new String(usernameRaw, StandardCharsets.US_ASCII);
+            password = new String(passwordRaw, StandardCharsets.US_ASCII);
         } catch (BufferUnderflowException e) {
             this.logger.finer("Malformed login message");
             return;
         }
-        String username = new String(usernameRaw, StandardCharsets.US_ASCII);
-        String password = new String(passwordRaw, StandardCharsets.US_ASCII);
 
         this.logger.finest(String.format("user %s pass %s", username, password));
 
+        WordleServer serverInstance = WordleServer.getInstance();
         // Authenticate
-        if (WordleServer.getInstance().checkLogin(username, password)) {
+        if (!serverInstance.checkLogin(username, password)) {
+            this.logger.finer(String.format("Authentication of user `%s` rejected", username));
+            // Prepare the auth rejected message
+            this.sendMessage(MessageStatus.INVALID_USER);
+            return;
+        }
+
+        // Enter synchronized block
+        synchronized (serverInstance) {
             // Get the previous session if any
-            UserSession previousSession;
-            if ((previousSession = WordleServer.getInstance().getUserSession(username)) != null) {
+            UserSession previousSession = serverInstance.getUserSession(username);
+            if (previousSession != null) {
                 // Cannot login more than once at the same time
                 if (previousSession.isActive()) {
                     this.logger.finer(
@@ -152,24 +164,20 @@ public class UserSession {
 
                 // Restore the previous session
                 this.lastPlayedSecretWord = previousSession.lastPlayedSecretWord;
+
+                // Update the session
+                WordleServer.getInstance().saveUserSession(username, this);
             }
-
-            // Update the state
-            this.state.login();
-            this.username = username;
-
-            // Update the session
-            WordleServer.getInstance().saveUserSession(username, this);
-
-            this.logger.finer(String.format("User `%s` logged in", username));
-
-            // Prepare the success message
-            this.sendMessage(MessageStatus.SUCCESS);
-        } else {
-            this.logger.finer(String.format("Authentication of user `%s` rejected", username));
-            // Prepare the auth rejected message
-            this.sendMessage(MessageStatus.INVALID_USER);
         }
+
+        // Update the state
+        this.state.login();
+        this.username = username;
+
+        this.logger.finer(String.format("User `%s` logged in", username));
+
+        // Prepare the success message
+        this.sendMessage(MessageStatus.SUCCESS);
     }
 
     private void logoutHandler() {
