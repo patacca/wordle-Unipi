@@ -20,6 +20,8 @@ import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -70,6 +72,7 @@ public final class WordleServer implements serverRMI {
     private volatile String secretWord; // Secret Word
     private volatile long sWTime;
     private HashSet<String> words = new HashSet<>();
+    private Leaderboard leaderboard;
 
 
     /**
@@ -77,7 +80,7 @@ public final class WordleServer implements serverRMI {
      */
     private static class ConnectionState {
         public ClientSession session; // The session object that handles the interaction with the
-                                    // client
+                                      // client
         public ByteBuffer readBuffer; // Buffer used for reading
         public ByteBuffer writeBuffer; // Buffer used for writing
 
@@ -165,6 +168,9 @@ public final class WordleServer implements serverRMI {
             e.printStackTrace();
             System.exit(1);
         }
+
+        // Load leaderboard
+        this.leaderboard = new Leaderboard(Collections.unmodifiableCollection(this.users.values()));
     }
 
     /**
