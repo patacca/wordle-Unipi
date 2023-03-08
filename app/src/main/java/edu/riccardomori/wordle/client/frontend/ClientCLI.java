@@ -32,12 +32,19 @@ public class ClientCLI implements ClientFrontend {
         System.exit(ret);
     }
 
+    private String prettifyCommand(Command c) {
+        if (c == Command.SHOW_STATS)
+            return "Show stats";
+
+        String s = c.toString().toLowerCase();
+        return s.substring(0, 1).toUpperCase() + s.substring(1);
+    }
+
     private void printActions() {
         this.out.println("\nChoose one of these actions");
         int k = 1;
         for (Command c : this.session.getCommands()) {
-            String s = c.toString().toLowerCase();
-            this.out.format("  %d. %s\n", k, s.substring(0, 1).toUpperCase() + s.substring(1));
+            this.out.format("  %d. %s\n", k, this.prettifyCommand(c));
             ++k;
         }
     }
