@@ -5,14 +5,15 @@ public class User {
     // Account details
     private String username;
     private String password;
+    private transient UserSession session;
 
     // Stats
-    private int totGames;
-    private int wonGames;
     private int[] guessDist = new int[WordleServer.WORD_TRIES + 1]; // index start from 1 just for
                                                                     // convenience
-    private int currStreak;
-    private int bestStreak;
+    public int totGames;
+    public int wonGames;
+    public int currStreak;
+    public int bestStreak;
 
     public User(String username, String password) {
         this.username = username;
@@ -59,5 +60,13 @@ public class User {
 
         sum += (WordleServer.WORD_TRIES + 1) * (this.totGames - this.wonGames);
         return (double) sum / this.totGames;
+    }
+
+    public UserSession getSession() {
+        return this.session;
+    }
+
+    public void setSession(UserSession session) {
+        this.session = session;
     }
 }

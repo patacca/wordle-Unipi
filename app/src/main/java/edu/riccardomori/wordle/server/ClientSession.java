@@ -18,12 +18,9 @@ public class ClientSession {
     private int interestOps; // The interest set of operations as a bitmask
     private ClientState state = new ClientState();
     private Logger logger;
-    private boolean sessionIsActive = true; // Tells if the session is active or if it has been
-                                            // closed
 
     private User user; // The user who is running this session
     private ByteBuffer writeBuf; // The buffer holding the writable data
-    private String lastPlayedSecretWord; // Last played secret word
     private int triesLeft;
 
     public ClientSession() {
@@ -42,11 +39,10 @@ public class ClientSession {
     }
 
     public void close() {
-        this.sessionIsActive = false;
-    }
-
-    public boolean isActive() {
-        return this.sessionIsActive;
+        if (this.user != null) {
+            this.user.getSession().isActive = false;
+            this.user = null;
+        }
     }
 
     /**
@@ -150,13 +146,14 @@ public class ClientSession {
             return;
         }
 
-        // Enter synchronized block
-        synchronized (serverInstance) {
-            // Get the previous session if any
-            ClientSession previousSession = serverInstance.getUserSession(username);
+        // Enter synchronized block to update the user session
+        UserSession newSession = new UserSession();
+        synchronized (user) {
+            // Get the previous user session if any
+            UserSession previousSession = user.getSession();
             if (previousSession != null) {
                 // Cannot login more than once at the same time
-                if (previousSession.isActive()) {
+                if (previousSession.isActive) {
                     this.logger.finer(
                             String.format("User `%s` already logged in. Rejected", username));
                     this.sendMessage(MessageStatus.ALREADY_LOGGED);
@@ -164,11 +161,11 @@ public class ClientSession {
                 }
 
                 // Restore the previous session
-                this.lastPlayedSecretWord = previousSession.lastPlayedSecretWord;
+                newSession.secretWord = previousSession.secretWord;
             }
 
             // Update the session
-            serverInstance.saveUserSession(username, this);
+            user.setSession(newSession);
         }
 
         // Update the state
@@ -186,8 +183,7 @@ public class ClientSession {
 
         // Clean the state
         this.state.logout();
-        this.sessionIsActive = false;
-        this.user = null;
+        this.close();
 
         // Prepare the success message
         this.sendMessage(MessageStatus.SUCCESS);
@@ -198,9 +194,10 @@ public class ClientSession {
 
         // Get the current word from server
         String secretWord = WordleServer.getInstance().getCurrentWord();
+        UserSession session = this.user.getSession();
 
         // Check if player already played with that word
-        if (secretWord.equals(this.lastPlayedSecretWord)) {
+        if (secretWord.equals(session.secretWord)) {
             // Send the time to the next secret word
             this.sendMessage(MessageStatus.ALREADY_PLAYED,
                     WordleServer.getInstance().getNextSWTime());
@@ -209,7 +206,7 @@ public class ClientSession {
 
         // Update the session state
         this.state.play();
-        this.lastPlayedSecretWord = secretWord;
+        session.secretWord = secretWord;
         this.triesLeft = WordleServer.WORD_TRIES;
         this.user.newGame();
 
@@ -232,11 +229,13 @@ public class ClientSession {
             return;
         }
 
+        UserSession session = this.user.getSession();
+
         // Read the guessed word
         String guessWord = StandardCharsets.UTF_8.decode(msg).toString();
 
         this.logger.info(String.format("User `%s` guessed word `%s` (secret `%s`)",
-                this.user.getUsername(), guessWord, this.lastPlayedSecretWord));
+                this.user.getUsername(), guessWord, session.secretWord));
 
         // Invalid word
         if (!WordleServer.getInstance().isValidWord(guessWord)) {
@@ -254,7 +253,7 @@ public class ClientSession {
         }
 
         // Client won
-        if (this.lastPlayedSecretWord.equals(guessWord)) {
+        if (session.secretWord.equals(guessWord)) {
             ByteBuffer sMsg = ByteBuffer.allocate(3 + guessWord.length());
             sMsg.put((byte) this.triesLeft);
             sMsg.put((byte) guessWord.length()); // correct size
@@ -274,16 +273,16 @@ public class ClientSession {
         List<Integer> correct = new ArrayList<>();
         List<Integer> partial = new ArrayList<>();
         Map<Character, Integer> map = new HashMap<>();
-        for (int k = 0; k < this.lastPlayedSecretWord.length(); ++k) {
-            if (this.lastPlayedSecretWord.charAt(k) == guessWord.charAt(k)) {
+        for (int k = 0; k < session.secretWord.length(); ++k) {
+            if (session.secretWord.charAt(k) == guessWord.charAt(k)) {
                 correct.add(k);
             } else {
-                int v = map.computeIfAbsent(this.lastPlayedSecretWord.charAt(k), i -> 0);
-                map.put(this.lastPlayedSecretWord.charAt(k), v + 1);
+                int v = map.computeIfAbsent(session.secretWord.charAt(k), i -> 0);
+                map.put(session.secretWord.charAt(k), v + 1);
             }
         }
-        for (int k = 0; k < this.lastPlayedSecretWord.length(); ++k) {
-            if (this.lastPlayedSecretWord.charAt(k) != guessWord.charAt(k)) {
+        for (int k = 0; k < session.secretWord.length(); ++k) {
+            if (session.secretWord.charAt(k) != guessWord.charAt(k)) {
                 int c = map.getOrDefault(guessWord.charAt(k), 0);
                 if (c > 0) {
                     partial.add(k);
@@ -294,8 +293,8 @@ public class ClientSession {
 
         // Forge message
         // Let's make the buffer bigger than necessary to avoid unnecessary calculations
-        ByteBuffer sMsg = ByteBuffer.allocate(
-                3 + correct.size() + partial.size() + 4 * this.lastPlayedSecretWord.length());
+        ByteBuffer sMsg = ByteBuffer
+                .allocate(3 + correct.size() + partial.size() + 4 * session.secretWord.length());
         sMsg.put((byte) this.triesLeft);
         sMsg.put((byte) correct.size());
         sMsg.put((byte) partial.size());
@@ -306,7 +305,7 @@ public class ClientSession {
 
         // No more tries left. Send the secret word
         if (this.triesLeft == 0)
-            sMsg.put(this.lastPlayedSecretWord.getBytes(StandardCharsets.UTF_8));
+            sMsg.put(session.secretWord.getBytes(StandardCharsets.UTF_8));
 
         sMsg.flip();
 

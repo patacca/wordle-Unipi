@@ -25,7 +25,6 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
@@ -68,7 +67,6 @@ public final class WordleServer implements serverRMI {
     // Scheduler for the current word generation
     private ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
     private Map<String, User> users;
-    private Map<String, UserSession> sessions = new ConcurrentHashMap<>();
     private volatile String secretWord; // Secret Word
     private volatile long sWTime;
     private HashSet<String> words = new HashSet<>();
@@ -78,7 +76,7 @@ public final class WordleServer implements serverRMI {
      * Private static class that is used to describe the state of a client connection.
      */
     private static class ConnectionState {
-        public UserSession session; // The session object that handles the interaction with the
+        public ClientSession session; // The session object that handles the interaction with the
                                     // client
         public ByteBuffer readBuffer; // Buffer used for reading
         public ByteBuffer writeBuffer; // Buffer used for writing
@@ -87,7 +85,7 @@ public final class WordleServer implements serverRMI {
         // If it is set to -1 it means that the message size is still unknown
         public int readMessageSize = -1;
 
-        public ConnectionState(UserSession session, int readCapacity, int writeCapacity) {
+        public ConnectionState(ClientSession session, int readCapacity, int writeCapacity) {
             this.session = session;
             this.readBuffer = ByteBuffer.allocate(readCapacity);
             // writeBuffer capacity = Size of the packet + Max capacity
@@ -285,14 +283,6 @@ public final class WordleServer implements serverRMI {
         return this.sWTime + this.swRate * 1000;
     }
 
-    public UserSession getUserSession(String username) {
-        return this.sessions.getOrDefault(username, null);
-    }
-
-    public void saveUserSession(String username, UserSession session) {
-        this.sessions.put(username, session);
-    }
-
     /**
      * The server main loop where it performs the multiplexing of the channels. The server must be
      * previously configured by calling WotdleServer.configure()
@@ -370,10 +360,10 @@ public final class WordleServer implements serverRMI {
         // Set TCP Keep Alive mode
         socket.setOption(StandardSocketOptions.SO_KEEPALIVE, true);
 
-        UserSession userSession = new UserSession();
-        int interestOps = userSession.getInterestOps();
+        ClientSession clientSession = new ClientSession();
+        int interestOps = clientSession.getInterestOps();
 
-        socket.register(selector, interestOps, new ConnectionState(userSession,
+        socket.register(selector, interestOps, new ConnectionState(clientSession,
                 WordleServer.SOCKET_MSG_MAX_SIZE, WordleServer.SOCKET_MSG_MAX_SIZE));
     }
 
