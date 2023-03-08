@@ -243,7 +243,7 @@ public final class WordleServer implements serverRMI {
         if (!username.matches("^[a-zA-Z0-9][a-zA-Z0-9_]{2,64}$")) {
             throw new UsernameIllegalException("username not valid");
         }
-        if (!password.matches("[a-zA-Z0-9_`~!@#$%^&*()\\-=+{}\\[\\];:''\",<.>/?\\\\|]{4,64}")) {
+        if (!password.matches("^[a-zA-Z0-9_`~!@#$%^&*()\\-=+{}\\[\\];:''\",<.>/?\\\\|]{4,64}$")) {
             throw new PasswordIllegalException("password not valid");
         }
 
