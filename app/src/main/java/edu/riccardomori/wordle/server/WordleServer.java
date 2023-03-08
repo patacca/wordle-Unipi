@@ -67,7 +67,7 @@ public final class WordleServer implements serverRMI {
 
     // Scheduler for the current word generation
     private ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
-    private Map<String, String> users;
+    private Map<String, User> users;
     private Map<String, UserSession> sessions = new ConcurrentHashMap<>();
     private volatile String secretWord; // Secret Word
     private volatile long sWTime;
@@ -158,7 +158,7 @@ public final class WordleServer implements serverRMI {
     private void loadUsers() {
         try (Reader in = new BufferedReader(new FileReader(WordleServer.USERS_DB_FILE))) {
             Gson gson = new Gson();
-            TypeToken<Map<String, String>> type = new TypeToken<Map<String, String>>() {};
+            TypeToken<Map<String, User>> type = new TypeToken<Map<String, User>>() {};
             this.users = gson.fromJson(in, type);
         } catch (FileNotFoundException e) {
             this.logger.info("User database not found");
@@ -236,6 +236,7 @@ public final class WordleServer implements serverRMI {
         return this.wordTries;
     }
 
+    // TODO Make it thread safe
     @Override
     public RMIStatus register(String username, String password) throws RemoteException {
         this.logger.info("New registration");
@@ -253,22 +254,24 @@ public final class WordleServer implements serverRMI {
             return RMIStatus.USER_TAKEN;
 
         // Save the user and sync the database
-        this.users.put(username, password);
+        this.users.put(username, new User(username, password));
         this.flush();
 
         return RMIStatus.SUCCESS;
     }
 
     /**
-     * Check if the pair (username, password) correctly identifies a real user. If the pair is not
-     * found in the user database then returns false
+     * Check if the pair (username, password) correctly identifies a real user, if it does then
+     * returns the {@code User} identified, otherwise returns {@code null}
      * 
      * @param username The username
      * @param password The password
-     * @return Whether the pair (username, password) is valid
+     * @return The {@code User} identified by the pair (username, password), {@code null} otherwise
      */
-    public boolean checkLogin(String username, String password) {
-        return (this.users.containsKey(username) && this.users.get(username).equals(password));
+    public User getUser(String username, String password) {
+        if (this.users.containsKey(username) && this.users.get(username).passwordMatch(password))
+            return this.users.get(username);
+        return null;
     }
 
     /**
