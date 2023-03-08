@@ -292,25 +292,28 @@ public class ClientCLI implements ClientFrontend {
 
         if (won) {
             this.out.println("Correct! Congratulations, you found the secret word!");
-            this.out.println("Stats:");
-
             // Fetch stats
-            try {
-                UserStats stats = this.backend.getStats();
-                this.out.format("  games played: %d\n", stats.totGames);
-                this.out.format("  games won: %d%%\n", 100*stats.wonGames/stats.totGames);
-                this.out.format("  current winning streak: %d\n", stats.currStreak);
-                this.out.format("  best winning streak: %d\n", stats.bestStreak);
-                this.out.format("  user score: %.2f\n", stats.score);
-            } catch (GenericError | IOError e) {
-                this.out.println("**Cannot retrieve stats from server**");
-            }
+            this.showStats();
 
             this.session.stopGame();
         } else if (this.triesLeft == 0) {
             this.out.println("Sorry but you used all the available tries.");
             this.out.format("The secret word was `%s`\n\n", secretWord);
             this.session.stopGame();
+        }
+    }
+
+    private void showStats() {
+        this.out.println("Stats:");
+        try {
+            UserStats stats = this.backend.getStats();
+            this.out.format("  games played: %d\n", stats.totGames);
+            this.out.format("  games won: %d%%\n", 100 * stats.wonGames / stats.totGames);
+            this.out.format("  current winning streak: %d\n", stats.currStreak);
+            this.out.format("  best winning streak: %d\n", stats.bestStreak);
+            this.out.format("  user score: %.2f\n", stats.score);
+        } catch (GenericError | IOError e) {
+            this.out.println("**Cannot retrieve stats from server**");
         }
     }
 
@@ -324,6 +327,9 @@ public class ClientCLI implements ClientFrontend {
                 break;
             case PLAY:
                 this.play();
+                break;
+            case SHOW_STATS:
+                this.showStats();
                 break;
             case LOGOUT:
                 this.logout();
