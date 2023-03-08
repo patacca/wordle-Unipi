@@ -166,7 +166,7 @@ public class UserSession {
                 this.lastPlayedSecretWord = previousSession.lastPlayedSecretWord;
 
                 // Update the session
-                WordleServer.getInstance().saveUserSession(username, this);
+                serverInstance.saveUserSession(username, this);
             }
         }
 
