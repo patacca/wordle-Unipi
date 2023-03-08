@@ -49,6 +49,7 @@ public class SessionState {
         this.commandSet.remove(Command.REGISTER);
         this.commandSet.add(Command.LOGOUT);
         this.commandSet.add(Command.PLAY);
+        this.commandSet.add(Command.SHOW_STATS);
     }
 
     public void registered() {
@@ -64,6 +65,7 @@ public class SessionState {
         this.commandSet.add(Command.REGISTER);
         this.commandSet.remove(Command.LOGOUT);
         this.commandSet.remove(Command.PLAY);
+        this.commandSet.remove(Command.SHOW_STATS);
     }
 
     public void startGame() {
