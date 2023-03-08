@@ -20,7 +20,6 @@ public class ServerMain {
     private static int rmiPort;
     private static int verbosity;
     private static int swRate;
-    private static int wordTries;
     private static String wordsDb;
 
     public static void main(String args[]) {
@@ -74,7 +73,7 @@ public class ServerMain {
         // Initialize Server
         WordleServer server = WordleServer.getInstance();
         server.configure(ServerMain.serverPort, ServerMain.rmiPort, ServerMain.swRate,
-                ServerMain.wordsDb, ServerMain.wordTries);
+                ServerMain.wordsDb);
 
         // Run the server
         server.run();
@@ -94,7 +93,6 @@ public class ServerMain {
         ServerMain.rmiPort = Integer.parseInt(prop.getProperty("rmi_port"));
         ServerMain.verbosity = Integer.parseInt(prop.getProperty("verbose"));
         ServerMain.swRate = Integer.parseInt(prop.getProperty("secret_word_rate"));
-        ServerMain.wordTries = Integer.parseInt(prop.getProperty("word_tries"));
         ServerMain.wordsDb = prop.getProperty("words_db");
         input.close();
     }

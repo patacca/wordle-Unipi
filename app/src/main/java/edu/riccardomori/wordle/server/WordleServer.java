@@ -53,6 +53,7 @@ public final class WordleServer implements serverRMI {
                                                               // credentials
     public static final int SOCKET_MSG_MAX_SIZE = 1024; // Maximum size for each message
     public static final int WORD_MAX_SIZE = 48; // Maximum size in bytes of a word
+    public static final int WORD_TRIES = 12; // Number of available tries for each game
 
     // Attributes
     private boolean isConfigured = false; // Flag that forbids running the server if previously it
@@ -61,7 +62,6 @@ public final class WordleServer implements serverRMI {
     private int rmiPort; // The port of the RMI server
     private int swRate; // Secret Word generation rate (in seconds)
     private String wordsDb; // File that contains the secret words to choose from
-    private int wordTries; // Number of available tries for each game
 
     private Logger logger;
 
@@ -221,19 +221,13 @@ public final class WordleServer implements serverRMI {
      * @param rmiPort // The port for the RMI server
      * @param swRate // Refresh rate (in seconds) for the secret word
      * @param wordsDb // The file that contains all the secret words to choose from
-     * @param wordTries // Number of available tries for each game
      */
-    public void configure(int tcpPort, int rmiPort, int swRate, String wordsDb, int wordTries) {
+    public void configure(int tcpPort, int rmiPort, int swRate, String wordsDb) {
         this.tcpPort = tcpPort;
         this.rmiPort = rmiPort;
         this.swRate = swRate;
         this.wordsDb = wordsDb;
-        this.wordTries = wordTries;
         this.isConfigured = true;
-    }
-
-    public int getWordTries() {
-        return this.wordTries;
     }
 
     // TODO Make it thread safe
