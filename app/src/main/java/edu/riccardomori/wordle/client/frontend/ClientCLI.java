@@ -5,10 +5,8 @@ import java.time.Duration;
 import java.util.Scanner;
 import java.util.function.Predicate;
 import edu.riccardomori.wordle.client.backend.ClientBackend;
-import edu.riccardomori.wordle.client.backend.Command;
 import edu.riccardomori.wordle.client.backend.GameDescriptor;
 import edu.riccardomori.wordle.client.backend.GuessDescriptor;
-import edu.riccardomori.wordle.client.backend.SessionState;
 import edu.riccardomori.wordle.client.backend.UserStats;
 import edu.riccardomori.wordle.client.backend.exceptions.*;
 
