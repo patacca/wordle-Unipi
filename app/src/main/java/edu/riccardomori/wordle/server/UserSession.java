@@ -210,7 +210,8 @@ public class UserSession {
         // Update the session state
         this.state.play();
         this.lastPlayedSecretWord = secretWord;
-        this.triesLeft = WordleServer.getInstance().getWordTries();
+        this.triesLeft = WordleServer.WORD_TRIES;
+        this.user.newGame();
 
         // Prepare the success message
         ByteBuffer msg = ByteBuffer.allocate(Integer.BYTES * 2);
