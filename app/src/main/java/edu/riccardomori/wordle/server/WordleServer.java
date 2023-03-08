@@ -25,6 +25,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
@@ -67,7 +68,7 @@ public final class WordleServer implements serverRMI {
     // Scheduler for the current word generation
     private ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
     private Map<String, String> users;
-    private Map<String, UserSession> sessions = new HashMap<>();
+    private Map<String, UserSession> sessions = new ConcurrentHashMap<>();
     private volatile String secretWord; // Secret Word
     private volatile long sWTime;
     private HashSet<String> words = new HashSet<>();
@@ -77,7 +78,7 @@ public final class WordleServer implements serverRMI {
      * Private static class that is used to describe the state of a client connection.
      */
     private static class ConnectionState {
-        public UserSession backend; // The backend object that handles the interaction with the
+        public UserSession session; // The session object that handles the interaction with the
                                     // client
         public ByteBuffer readBuffer; // Buffer used for reading
         public ByteBuffer writeBuffer; // Buffer used for writing
@@ -86,8 +87,8 @@ public final class WordleServer implements serverRMI {
         // If it is set to -1 it means that the message size is still unknown
         public int readMessageSize = -1;
 
-        public ConnectionState(UserSession backend, int readCapacity, int writeCapacity) {
-            this.backend = backend;
+        public ConnectionState(UserSession session, int readCapacity, int writeCapacity) {
+            this.session = session;
             this.readBuffer = ByteBuffer.allocate(readCapacity);
             // writeBuffer capacity = Size of the packet + Max capacity
             this.writeBuffer = ByteBuffer.allocate(Integer.BYTES + writeCapacity);
@@ -400,7 +401,7 @@ public final class WordleServer implements serverRMI {
         // Connection closed by client
         if (nRead < 0) {
             this.logger.finer("Connection closed");
-            state.backend.close();
+            state.session.close();
             socket.close();
             return;
         }
@@ -422,7 +423,7 @@ public final class WordleServer implements serverRMI {
                 this.logger.info(String.format(
                         "Message (%d bytes) exceeds maximum size. Closing connection.",
                         state.readMessageSize));
-                state.backend.close();
+                state.session.close();
                 socket.close();
                 return;
             }
@@ -440,9 +441,9 @@ public final class WordleServer implements serverRMI {
                     size, state.readMessageSize));
 
         // Handle the message and update the interest ops
-        int newInterestOps = state.backend.handleMessage(state.finishRead());
+        int newInterestOps = state.session.handleMessage(state.finishRead());
         if ((newInterestOps & SelectionKey.OP_WRITE) != 0)
-            state.setWritableMessage(state.backend.getWriteBuffer());
+            state.setWritableMessage(state.session.getWriteBuffer());
         key.interestOps(newInterestOps);
     }
 
