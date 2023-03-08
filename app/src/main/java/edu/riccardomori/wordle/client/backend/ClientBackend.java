@@ -288,4 +288,32 @@ public class ClientBackend {
             throw new IOError();
         }
     }
+
+    public UserStats getStats() throws GenericError, IOError {
+        // Prepare the STATS message
+        ByteBuffer data = ByteBuffer.allocate(1);
+        data.put(Action.STATS.getValue());
+        data.flip();
+
+        try {
+            this.socketWrite(data);
+
+            // Wait for the response
+            Message msg = this.socketGetMessage();
+
+            if (msg.status == MessageStatus.SUCCESS) {
+                // Parse message
+                int totGames = msg.message.getInt();
+                int wonGames = msg.message.getInt();
+                int currStrak = msg.message.getInt();
+                int bestStreak = msg.message.getInt();
+                double score = msg.message.getDouble();
+
+                return new UserStats(totGames, wonGames, currStrak, bestStreak, score);
+            } else
+                throw new GenericError();
+        } catch (IOException e) {
+            throw new IOError();
+        }
+    }
 }

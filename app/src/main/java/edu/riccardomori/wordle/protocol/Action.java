@@ -6,6 +6,7 @@ public enum Action {
     LOGOUT((byte) 1),
     PLAY((byte) 2),
     SEND_WORD((byte) 3),
+    STATS((byte) 4),
     UNKNOWN((byte) 0xff);
     // @formatter:on
 
@@ -25,6 +26,8 @@ public enum Action {
                 return PLAY;
             case 3:
                 return SEND_WORD;
+            case 4:
+                return STATS;
             default:
                 return UNKNOWN;
         }
