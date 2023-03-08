@@ -1,4 +1,4 @@
-package edu.riccardomori.wordle.client.backend;
+package edu.riccardomori.wordle.client.frontend;
 
 import java.util.SortedSet;
 import java.util.TreeSet;
