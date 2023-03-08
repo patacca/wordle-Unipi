@@ -9,6 +9,7 @@ import edu.riccardomori.wordle.client.backend.Command;
 import edu.riccardomori.wordle.client.backend.GameDescriptor;
 import edu.riccardomori.wordle.client.backend.GuessDescriptor;
 import edu.riccardomori.wordle.client.backend.SessionState;
+import edu.riccardomori.wordle.client.backend.UserStats;
 import edu.riccardomori.wordle.client.backend.exceptions.*;
 
 // TODO separate between backend Commands and frontend commands
@@ -292,12 +293,19 @@ public class ClientCLI implements ClientFrontend {
         if (won) {
             this.out.println("Correct! Congratulations, you found the secret word!");
             this.out.println("Stats:");
+
             // Fetch stats
-            this.out.format("  games played: %d\n", 1);
-            this.out.format("  games won: %d%%\n", 1);
-            this.out.format("  current winning streak: %d\n", 1);
-            this.out.format("  best winning streak: %d\n", 1);
-            this.out.format("  user score: %d\n", 1);
+            try {
+                UserStats stats = this.backend.getStats();
+                this.out.format("  games played: %d\n", stats.totGames);
+                this.out.format("  games won: %d%%\n", 100*stats.wonGames/stats.totGames);
+                this.out.format("  current winning streak: %d\n", stats.currStreak);
+                this.out.format("  best winning streak: %d\n", stats.bestStreak);
+                this.out.format("  user score: %.2f\n", stats.score);
+            } catch (GenericError | IOError e) {
+                this.out.println("**Cannot retrieve stats from server**");
+            }
+
             this.session.stopGame();
         } else if (this.triesLeft == 0) {
             this.out.println("Sorry but you used all the available tries.");
