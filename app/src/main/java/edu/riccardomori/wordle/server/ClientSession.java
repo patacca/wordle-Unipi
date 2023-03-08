@@ -14,7 +14,7 @@ import edu.riccardomori.wordle.protocol.ClientState;
 import edu.riccardomori.wordle.protocol.MessageStatus;
 import edu.riccardomori.wordle.server.WordleServer;
 
-public class UserSession {
+public class ClientSession {
     private int interestOps; // The interest set of operations as a bitmask
     private ClientState state = new ClientState();
     private Logger logger;
@@ -26,7 +26,7 @@ public class UserSession {
     private String lastPlayedSecretWord; // Last played secret word
     private int triesLeft;
 
-    public UserSession() {
+    public ClientSession() {
         this.interestOps = SelectionKey.OP_READ;
         this.writeBuf = ByteBuffer.allocate(WordleServer.SOCKET_MSG_MAX_SIZE);
 
@@ -153,7 +153,7 @@ public class UserSession {
         // Enter synchronized block
         synchronized (serverInstance) {
             // Get the previous session if any
-            UserSession previousSession = serverInstance.getUserSession(username);
+            ClientSession previousSession = serverInstance.getUserSession(username);
             if (previousSession != null) {
                 // Cannot login more than once at the same time
                 if (previousSession.isActive()) {
@@ -165,10 +165,10 @@ public class UserSession {
 
                 // Restore the previous session
                 this.lastPlayedSecretWord = previousSession.lastPlayedSecretWord;
-
-                // Update the session
-                serverInstance.saveUserSession(username, this);
             }
+
+            // Update the session
+            serverInstance.saveUserSession(username, this);
         }
 
         // Update the state
@@ -313,6 +313,20 @@ public class UserSession {
         this.sendMessage(MessageStatus.SUCCESS, sMsg);
     }
 
+    private void statsHandler() {
+        // Prepare the message
+        ByteBuffer msg = ByteBuffer.allocate(Integer.BYTES * 4 + Double.BYTES);
+        msg.putInt(this.user.totGames);
+        msg.putInt(this.user.wonGames);
+        msg.putInt(this.user.currStreak);
+        msg.putInt(this.user.bestStreak);
+        msg.putDouble(this.user.score());
+        // put classification position
+        msg.flip();
+
+        this.sendMessage(MessageStatus.SUCCESS, msg);
+    }
+
     /**
      * Read the message provided in the buffer and perform the action requested considering the
      * current state of the session. Note that the message **must** always be complete. A partial or
@@ -347,6 +361,10 @@ public class UserSession {
                     this.startGameHandler();
                     break;
 
+                case STATS:
+                    this.statsHandler();
+                    break;
+
                 default:
                     this.logger.info(String.format("User `%s` not allowed to perform this action",
                             this.user.getUsername()));
@@ -362,6 +380,10 @@ public class UserSession {
 
                 case LOGOUT:
                     this.logoutHandler();
+                    break;
+
+                case STATS:
+                    this.statsHandler();
                     break;
 
                 default:
