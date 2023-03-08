@@ -12,6 +12,7 @@ import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
+import java.util.List;
 import edu.riccardomori.wordle.client.backend.exceptions.AlreadyLoggedException;
 import edu.riccardomori.wordle.client.backend.exceptions.AlreadyPlayedException;
 import edu.riccardomori.wordle.client.backend.exceptions.GenericError;
@@ -26,6 +27,7 @@ import edu.riccardomori.wordle.protocol.MessageStatus;
 import edu.riccardomori.wordle.rmi.RMIConstants;
 import edu.riccardomori.wordle.rmi.RMIStatus;
 import edu.riccardomori.wordle.rmi.serverRMI;
+import edu.riccardomori.wordle.utils.Pair;
 
 public class ClientBackend {
     // Constants
@@ -315,5 +317,9 @@ public class ClientBackend {
         } catch (IOException e) {
             throw new IOError();
         }
+    }
+
+    public List<Pair<String, Double>> getLeaderboard() {
+        return null;
     }
 }

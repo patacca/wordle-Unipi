@@ -2,6 +2,7 @@ package edu.riccardomori.wordle.client.frontend;
 
 import java.io.PrintStream;
 import java.time.Duration;
+import java.util.List;
 import java.util.Scanner;
 import java.util.function.Predicate;
 import edu.riccardomori.wordle.client.backend.ClientBackend;
@@ -9,6 +10,7 @@ import edu.riccardomori.wordle.client.backend.GameDescriptor;
 import edu.riccardomori.wordle.client.backend.GuessDescriptor;
 import edu.riccardomori.wordle.client.backend.UserStats;
 import edu.riccardomori.wordle.client.backend.exceptions.*;
+import edu.riccardomori.wordle.utils.Pair;
 
 // TODO separate between backend Commands and frontend commands
 public class ClientCLI implements ClientFrontend {
@@ -33,11 +35,15 @@ public class ClientCLI implements ClientFrontend {
     }
 
     private String prettifyCommand(Command c) {
-        if (c == Command.SHOW_STATS)
-            return "Show stats";
-
-        String s = c.toString().toLowerCase();
-        return s.substring(0, 1).toUpperCase() + s.substring(1);
+        switch (c) {
+            case SHOW_STATS:
+                return "Show my stats";
+            case SHOW_LEADERBOARD:
+                return "Show the leaderboard";
+            default:
+                String s = c.toString().toLowerCase();
+                return s.substring(0, 1).toUpperCase() + s.substring(1);
+        }
     }
 
     private void printActions() {
@@ -322,6 +328,10 @@ public class ClientCLI implements ClientFrontend {
         }
     }
 
+    private void showLeaderboard() {
+        List<Pair<String, Double>> leaderboard = this.backend.getLeaderboard();
+    }
+
     private void handleCommand(Command command) {
         switch (command) {
             case REGISTER:
@@ -335,6 +345,9 @@ public class ClientCLI implements ClientFrontend {
                 break;
             case SHOW_STATS:
                 this.showStats();
+                break;
+            case SHOW_LEADERBOARD:
+                this.showLeaderboard();
                 break;
             case LOGOUT:
                 this.logout();

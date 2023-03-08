@@ -50,6 +50,7 @@ public class SessionState {
         this.commandSet.add(Command.LOGOUT);
         this.commandSet.add(Command.PLAY);
         this.commandSet.add(Command.SHOW_STATS);
+        this.commandSet.add(Command.SHOW_LEADERBOARD);
     }
 
     public void registered() {
@@ -66,6 +67,7 @@ public class SessionState {
         this.commandSet.remove(Command.LOGOUT);
         this.commandSet.remove(Command.PLAY);
         this.commandSet.remove(Command.SHOW_STATS);
+        this.commandSet.remove(Command.SHOW_LEADERBOARD);
     }
 
     public void startGame() {
