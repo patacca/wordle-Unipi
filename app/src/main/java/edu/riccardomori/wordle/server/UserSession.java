@@ -248,8 +248,10 @@ public class UserSession {
         this.triesLeft--;
 
         // If there are no available tries left, end the game
-        if (this.triesLeft == 0)
+        if (this.triesLeft == 0) {
             this.state.stopPlaying();
+            this.user.loseGame();
+        }
 
         // Client won
         if (this.lastPlayedSecretWord.equals(guessWord)) {
@@ -262,6 +264,7 @@ public class UserSession {
             sMsg.flip();
 
             this.state.stopPlaying();
+            this.user.winGame(WordleServer.WORD_TRIES - this.triesLeft);
 
             this.sendMessage(MessageStatus.SUCCESS, sMsg);
             return;
