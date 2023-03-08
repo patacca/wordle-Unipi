@@ -21,7 +21,7 @@ public class UserSession {
     private boolean sessionIsActive = true; // Tells if the session is active or if it has been
                                             // closed
 
-    private String username; // The username of the client who is running this session
+    private User user; // The user who is running this session
     private ByteBuffer writeBuf; // The buffer holding the writable data
     private String lastPlayedSecretWord; // Last played secret word
     private int triesLeft;
@@ -140,9 +140,10 @@ public class UserSession {
 
         this.logger.finest(String.format("user %s pass %s", username, password));
 
-        WordleServer serverInstance = WordleServer.getInstance();
         // Authenticate
-        if (!serverInstance.checkLogin(username, password)) {
+        WordleServer serverInstance = WordleServer.getInstance();
+        User user = serverInstance.getUser(username, password);
+        if (user == null) {
             this.logger.finer(String.format("Authentication of user `%s` rejected", username));
             // Prepare the auth rejected message
             this.sendMessage(MessageStatus.INVALID_USER);
@@ -172,7 +173,7 @@ public class UserSession {
 
         // Update the state
         this.state.login();
-        this.username = username;
+        this.user = user;
 
         this.logger.finer(String.format("User `%s` logged in", username));
 
@@ -181,18 +182,19 @@ public class UserSession {
     }
 
     private void logoutHandler() {
-        this.logger.info(String.format("User `%s`: action Logout", this.username));
+        this.logger.info(String.format("User `%s`: action Logout", this.user.getUsername()));
 
+        // Clean the state
         this.state.logout();
         this.sessionIsActive = false;
-        this.username = null;
+        this.user = null;
 
         // Prepare the success message
         this.sendMessage(MessageStatus.SUCCESS);
     }
 
     private void startGameHandler() {
-        this.logger.info(String.format("User `%s`: action playWORDLE", this.username));
+        this.logger.info(String.format("User `%s`: action playWORDLE", this.user.getUsername()));
 
         // Get the current word from server
         String secretWord = WordleServer.getInstance().getCurrentWord();
@@ -232,8 +234,8 @@ public class UserSession {
         // Read the guessed word
         String guessWord = StandardCharsets.UTF_8.decode(msg).toString();
 
-        this.logger.info(String.format("User `%s` guessed word `%s` (secret `%s`)", this.username,
-                guessWord, this.lastPlayedSecretWord));
+        this.logger.info(String.format("User `%s` guessed word `%s` (secret `%s`)",
+                this.user.getUsername(), guessWord, this.lastPlayedSecretWord));
 
         // Invalid word
         if (!WordleServer.getInstance().isValidWord(guessWord)) {
@@ -343,7 +345,7 @@ public class UserSession {
 
                 default:
                     this.logger.info(String.format("User `%s` not allowed to perform this action",
-                            this.username));
+                            this.user.getUsername()));
                     this.sendMessage(MessageStatus.ACTION_UNAUTHORIZED);
                     break;
             }
@@ -360,7 +362,7 @@ public class UserSession {
 
                 default:
                     this.logger.info(String.format("User `%s` not allowed to perform this action",
-                            this.username));
+                            this.user.getUsername()));
                     this.sendMessage(MessageStatus.ACTION_UNAUTHORIZED);
                     break;
             }
