@@ -12,6 +12,7 @@ import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
+import java.rmi.server.UnicastRemoteObject;
 import java.util.List;
 import edu.riccardomori.wordle.client.backend.exceptions.AlreadyLoggedException;
 import edu.riccardomori.wordle.client.backend.exceptions.AlreadyPlayedException;
@@ -26,6 +27,7 @@ import edu.riccardomori.wordle.protocol.Action;
 import edu.riccardomori.wordle.protocol.MessageStatus;
 import edu.riccardomori.wordle.rmi.RMIConstants;
 import edu.riccardomori.wordle.rmi.RMIStatus;
+import edu.riccardomori.wordle.rmi.clientRMI;
 import edu.riccardomori.wordle.rmi.serverRMI;
 import edu.riccardomori.wordle.utils.Pair;
 
@@ -39,6 +41,7 @@ public class ClientBackend {
     private int rmiPort; // The port of the RMI server
 
     private Socket socket; // The socket for communicating with the server
+    private clientRMI clientStub; // The stub of the client in case of a subscription
 
     /**
      * Simple utility class that holds a message status code and the optional message
@@ -109,6 +112,28 @@ public class ClientBackend {
         out.flush();
     }
 
+    public void subscribe(clientRMI client) throws GenericError {
+        try {
+            Registry registry = LocateRegistry.getRegistry(this.serverHost, this.rmiPort);
+            serverRMI service = (serverRMI) registry.lookup(RMIConstants.SERVER_NAME);
+            if (this.clientStub == null)
+                this.clientStub = (clientRMI) UnicastRemoteObject.exportObject(client, 0);
+            service.subscribe(this.clientStub);
+        } catch (NotBoundException | RemoteException e) {
+            throw new GenericError();
+        }
+    }
+
+    public void unsubscribe(clientRMI client) throws GenericError {
+        try {
+            Registry registry = LocateRegistry.getRegistry(this.serverHost, this.rmiPort);
+            serverRMI service = (serverRMI) registry.lookup(RMIConstants.SERVER_NAME);
+            service.cancelSubscription(this.clientStub);
+        } catch (NotBoundException | RemoteException e) {
+            throw new GenericError();
+        }
+    }
+
     /**
      * Register the pair (username, password) to the server.
      * 
@@ -123,7 +148,7 @@ public class ClientBackend {
         try {
             // Call RMI
             Registry registry = LocateRegistry.getRegistry(this.serverHost, this.rmiPort);
-            serverRMI service = (serverRMI) registry.lookup(RMIConstants.RMI_REGISTER);
+            serverRMI service = (serverRMI) registry.lookup(RMIConstants.SERVER_NAME);
             RMIStatus result = service.register(username, password);
 
             if (result == RMIStatus.SUCCESS)

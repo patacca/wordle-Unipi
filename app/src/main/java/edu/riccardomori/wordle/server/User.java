@@ -1,6 +1,7 @@
 package edu.riccardomori.wordle.server;
 
-// Represents a single user account, with all the user stats
+// Represents a single user account, with all the user stats.
+// The class is not thread-safe so only one owner should operate on it
 public class User {
     // Account details
     private String username;

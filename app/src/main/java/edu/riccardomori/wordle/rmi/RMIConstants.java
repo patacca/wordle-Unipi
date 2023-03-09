@@ -1,7 +1,8 @@
 package edu.riccardomori.wordle.rmi;
 
 public abstract class RMIConstants {
-    public static final String RMI_REGISTER = "REGISTER"; // Name of the register RMI method
+    // Name on the RMI registry
+    public static final String SERVER_NAME = "Wordle";
 
     private RMIConstants() {}
 }
