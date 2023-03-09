@@ -47,7 +47,9 @@ public class ClientCLI implements ClientFrontend, clientRMI {
             case SHOW_STATS:
                 return "Show my stats";
             case SHOW_LEADERBOARD:
-                return "Show the leaderboard";
+                return "Show the top of leaderboard";
+            case SHOW_FULL_LEADERBOARD:
+                return "Show the full leaderboard";
             default:
                 String s = c.toString().toLowerCase();
                 return s.substring(0, 1).toUpperCase() + s.substring(1);
@@ -154,9 +156,6 @@ public class ClientCLI implements ClientFrontend, clientRMI {
     @Override
     public void updateLeaderboard(List<Pair<String, Double>> leaderboard) throws RemoteException {
         this.partialLeaderboard = leaderboard;
-        this.out.println("UPDATED");
-        for (Pair<String, Double> p : leaderboard)
-            this.out.format("%s  %.2f\n", p.first, p.second);
     }
 
     private void register() {
@@ -357,9 +356,33 @@ public class ClientCLI implements ClientFrontend, clientRMI {
     }
 
     private void showLeaderboard() {
-        List<Pair<String, Double>> leaderboard = this.backend.getLeaderboard();
+        if (this.partialLeaderboard == null) {
+            try {
+                this.partialLeaderboard = this.backend.getLeaderboard();
+            } catch (GenericError | IOError e) {
+                this.out.println("**Cannot retrieve the leaderboard from the server**");
+                return;
+            }
+        }
+        this.out.println("Leaderboard:");
+        int k = 1;
         for (Pair<String, Double> curr : this.partialLeaderboard) {
-            this.out.format("%s\t%.2f\n", curr.first, curr.second);
+            this.out.format(" %d.   %.2f\t%s\n", k, curr.second, curr.first);
+            ++k;
+        }
+    }
+
+    private void showFullLeaderboard() {
+        try {
+            List<Pair<String, Double>> leaderboard = this.backend.getFullLeaderboard();
+            this.out.println("Leaderboard:");
+            int k = 1;
+            for (Pair<String, Double> curr : leaderboard) {
+                this.out.format(" %d.   %.2f\t%s\n", k, curr.second, curr.first);
+                ++k;
+            }
+        } catch (GenericError | IOError e) {
+            this.out.println("**Cannot retrieve the leaderboard from the server**");
         }
     }
 
@@ -379,6 +402,9 @@ public class ClientCLI implements ClientFrontend, clientRMI {
                 break;
             case SHOW_LEADERBOARD:
                 this.showLeaderboard();
+                break;
+            case SHOW_FULL_LEADERBOARD:
+                this.showFullLeaderboard();
                 break;
             case LOGOUT:
                 this.logout();

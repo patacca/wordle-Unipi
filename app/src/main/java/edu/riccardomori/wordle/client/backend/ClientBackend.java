@@ -13,6 +13,7 @@ import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
+import java.util.ArrayList;
 import java.util.List;
 import edu.riccardomori.wordle.client.backend.exceptions.AlreadyLoggedException;
 import edu.riccardomori.wordle.client.backend.exceptions.AlreadyPlayedException;
@@ -344,7 +345,69 @@ public class ClientBackend {
         }
     }
 
-    public List<Pair<String, Double>> getLeaderboard() {
-        return null;
+    public List<Pair<String, Double>> getLeaderboard() throws GenericError, IOError {
+        // Prepare the TOP_LEADERBOARD message
+        ByteBuffer data = ByteBuffer.allocate(1);
+        data.put(Action.TOP_LEADERBOARD.getValue());
+        data.flip();
+
+        try {
+            this.socketWrite(data);
+
+            // Wait for the response
+            Message msg = this.socketGetMessage();
+
+            if (msg.status == MessageStatus.SUCCESS) {
+                // Parse message
+                List<Pair<String, Double>> leaderboard = new ArrayList<>();
+                int size = msg.message.getInt();
+                for (int k=0; k < size; ++k) {
+                    int usernameLen = msg.message.getInt();
+                    byte[] encUsername = new byte[usernameLen];
+                    msg.message.get(encUsername);
+                    String username = new String(encUsername, StandardCharsets.UTF_8);
+                    double score = msg.message.getDouble();
+                    leaderboard.add(new Pair<String,Double>(username, score));
+                }
+
+                return leaderboard;
+            } else
+                throw new GenericError();
+        } catch (IOException e) {
+            throw new IOError();
+        }
+    }
+
+    public List<Pair<String, Double>> getFullLeaderboard() throws GenericError, IOError {
+        // Prepare the FULL_LEADERBOARD message
+        ByteBuffer data = ByteBuffer.allocate(1);
+        data.put(Action.FULL_LEADERBOARD.getValue());
+        data.flip();
+
+        try {
+            this.socketWrite(data);
+
+            // Wait for the response
+            Message msg = this.socketGetMessage();
+
+            if (msg.status == MessageStatus.SUCCESS) {
+                // Parse message
+                List<Pair<String, Double>> leaderboard = new ArrayList<>();
+                int size = msg.message.getInt();
+                for (int k=0; k < size; ++k) {
+                    int usernameLen = msg.message.getInt();
+                    byte[] encUsername = new byte[usernameLen];
+                    msg.message.get(encUsername);
+                    String username = new String(encUsername, StandardCharsets.UTF_8);
+                    double score = msg.message.getDouble();
+                    leaderboard.add(new Pair<String,Double>(username, score));
+                }
+
+                return leaderboard;
+            } else
+                throw new GenericError();
+        } catch (IOException e) {
+            throw new IOError();
+        }
     }
 }

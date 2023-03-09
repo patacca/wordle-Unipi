@@ -10,6 +10,7 @@ import edu.riccardomori.wordle.utils.Pair;
 
 // Leadebord implementation
 // All the operations are O(log(n))
+// Every access if mutually exclusive
 public class Leaderboard {
     // The BST ordered by score. The boolean value can safely be ignored
     // The key (score, username) won't affect the ordering
@@ -45,6 +46,20 @@ public class Leaderboard {
             if (ret.size() == ranks)
                 return ret;
         }
+
+        return ret;
+    }
+
+    /**
+     * Returns the full leaderboard
+     * 
+     * @param ranks
+     * @return List of pairs <Username, Score> in the order they appear in the leaderboard
+     */
+    public synchronized List<Pair<String, Double>> get() {
+        List<Pair<String, Double>> ret = new ArrayList<>();
+        for (Pair<Double, String> curr : this.leaderboard.navigableKeySet())
+            ret.add(new Pair<String, Double>(curr.second, curr.first));
 
         return ret;
     }
