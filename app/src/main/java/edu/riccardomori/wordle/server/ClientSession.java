@@ -13,6 +13,7 @@ import edu.riccardomori.wordle.protocol.Action;
 import edu.riccardomori.wordle.protocol.ClientState;
 import edu.riccardomori.wordle.protocol.MessageStatus;
 import edu.riccardomori.wordle.server.WordleServer;
+import edu.riccardomori.wordle.utils.Pair;
 
 public class ClientSession {
     private int interestOps; // The interest set of operations as a bitmask
@@ -324,6 +325,8 @@ public class ClientSession {
     }
 
     private void statsHandler() {
+        this.logger.info(String.format("User %s action STATS", this.user.getUsername()));
+
         // Prepare the message
         ByteBuffer msg = ByteBuffer.allocate(Integer.BYTES * 4 + Double.BYTES);
         msg.putInt(this.user.totGames);
@@ -331,7 +334,47 @@ public class ClientSession {
         msg.putInt(this.user.currStreak);
         msg.putInt(this.user.bestStreak);
         msg.putDouble(this.user.score());
-        // put classification position
+        // TODO put leaderboard position
+        msg.flip();
+
+        this.sendMessage(MessageStatus.SUCCESS, msg);
+    }
+
+    private void topLeaderboardHandler() {
+        this.logger.info(String.format("User %s action TOP_LEADERBOARD", this.user.getUsername()));
+
+        // Get the top leaderboard
+        List<Pair<String, Double>> leaderboard = WordleServer.getInstance().getTopLeaderboard();
+
+        // Prepare the message
+        ByteBuffer msg = ByteBuffer.allocate(WordleServer.SOCKET_MSG_MAX_SIZE);
+        msg.putInt(leaderboard.size());
+        for (Pair<String, Double> p : leaderboard) {
+            ByteBuffer enc = StandardCharsets.UTF_8.encode(p.first);
+            msg.putInt(enc.limit());
+            msg.put(enc);
+            msg.putDouble(p.second);
+        }
+        msg.flip();
+
+        this.sendMessage(MessageStatus.SUCCESS, msg);
+    }
+
+    private void fullLeaderboardHandler() {
+        this.logger.info(String.format("User %s action FULL_LEADERBOARD", this.user.getUsername()));
+
+        // Get the full leaderboard
+        List<Pair<String, Double>> leaderboard = WordleServer.getInstance().getFullLeaderboard();
+
+        // Prepare the message
+        ByteBuffer msg = ByteBuffer.allocate(WordleServer.SOCKET_MSG_MAX_SIZE);
+        msg.putInt(leaderboard.size());
+        for (Pair<String, Double> p : leaderboard) {
+            ByteBuffer enc = StandardCharsets.UTF_8.encode(p.first);
+            msg.putInt(enc.limit());
+            msg.put(enc);
+            msg.putDouble(p.second);
+        }
         msg.flip();
 
         this.sendMessage(MessageStatus.SUCCESS, msg);
@@ -375,6 +418,14 @@ public class ClientSession {
                     this.statsHandler();
                     break;
 
+                case TOP_LEADERBOARD:
+                    this.topLeaderboardHandler();
+                    break;
+
+                case FULL_LEADERBOARD:
+                    this.fullLeaderboardHandler();
+                    break;
+
                 default:
                     this.logger.info(String.format("User `%s` not allowed to perform this action",
                             this.user.getUsername()));
@@ -394,6 +445,14 @@ public class ClientSession {
 
                 case STATS:
                     this.statsHandler();
+                    break;
+
+                case TOP_LEADERBOARD:
+                    this.topLeaderboardHandler();
+                    break;
+
+                case FULL_LEADERBOARD:
+                    this.fullLeaderboardHandler();
                     break;
 
                 default:

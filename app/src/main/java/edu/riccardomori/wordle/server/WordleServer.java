@@ -98,8 +98,8 @@ public final class WordleServer implements serverRMI {
 
         public ConnectionState(ClientSession session, int readCapacity, int writeCapacity) {
             this.session = session;
-            this.readBuffer = ByteBuffer.allocate(readCapacity);
-            // writeBuffer capacity = Size of the packet + Max capacity
+            // Size of the packet + Max capacity
+            this.readBuffer = ByteBuffer.allocate(Integer.BYTES + readCapacity);
             this.writeBuffer = ByteBuffer.allocate(Integer.BYTES + writeCapacity);
         }
 
@@ -315,6 +315,14 @@ public final class WordleServer implements serverRMI {
 
     public long getNextSWTime() {
         return this.sWTime + this.swRate * 1000;
+    }
+
+    public List<Pair<String, Double>> getTopLeaderboard() {
+        return this.leaderboard.get(WordleServer.SUBS_THRESHOLD);
+    }
+
+    public List<Pair<String, Double>> getFullLeaderboard() {
+        return this.leaderboard.get();
     }
 
     /**
