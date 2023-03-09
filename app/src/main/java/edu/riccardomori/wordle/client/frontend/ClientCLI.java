@@ -1,6 +1,7 @@
 package edu.riccardomori.wordle.client.frontend;
 
 import java.io.PrintStream;
+import java.rmi.RemoteException;
 import java.time.Duration;
 import java.util.List;
 import java.util.Scanner;
@@ -10,10 +11,11 @@ import edu.riccardomori.wordle.client.backend.GameDescriptor;
 import edu.riccardomori.wordle.client.backend.GuessDescriptor;
 import edu.riccardomori.wordle.client.backend.UserStats;
 import edu.riccardomori.wordle.client.backend.exceptions.*;
+import edu.riccardomori.wordle.rmi.clientRMI;
 import edu.riccardomori.wordle.utils.Pair;
 
 // TODO separate between backend Commands and frontend commands
-public class ClientCLI implements ClientFrontend {
+public class ClientCLI implements ClientFrontend, clientRMI {
     private final PrintStream out = System.out;
     private final Scanner in = new Scanner(System.in);
 
@@ -23,6 +25,7 @@ public class ClientCLI implements ClientFrontend {
     private String serverHost; // The server host
     private int triesLeft;
     private int wordLen;
+    private volatile List<Pair<String, Double>> partialLeaderboard;
 
     public ClientCLI(String host, int serverPort, int rmiPort) {
         this.backend = new ClientBackend(host, serverPort, rmiPort);
@@ -30,6 +33,11 @@ public class ClientCLI implements ClientFrontend {
     }
 
     private void exit(int ret) {
+        try {
+            this.backend.unsubscribe(this);
+        } catch (Exception e) {
+        }
+
         this.out.println("Bye bye!");
         System.exit(ret);
     }
@@ -143,6 +151,14 @@ public class ClientCLI implements ClientFrontend {
         return this.session.getCommands().contains(command);
     }
 
+    @Override
+    public void updateLeaderboard(List<Pair<String, Double>> leaderboard) throws RemoteException {
+        this.partialLeaderboard = leaderboard;
+        this.out.println("UPDATED");
+        for (Pair<String, Double> p : leaderboard)
+            this.out.format("%s  %.2f\n", p.first, p.second);
+    }
+
     private void register() {
         // Check username & password
         String username = this.readUntil(
@@ -182,6 +198,13 @@ public class ClientCLI implements ClientFrontend {
 
             this.out.println("Logged in successfully!");
 
+            // Subscribe to the leaderboard updates
+            try {
+                this.backend.subscribe(this);
+            } catch (GenericError e) {
+                this.out.println("Cannot subscribe to the leaderboard updates");
+            }
+
             // Update the session state
             this.session.login(username);
         } catch (InvalidUserException e) {
@@ -205,6 +228,11 @@ public class ClientCLI implements ClientFrontend {
             this.backend.logout();
 
             this.out.println("Logged out");
+
+            try {
+                this.backend.unsubscribe(this);
+            } catch (Exception e) {
+            }
 
             // Update the session state
             this.session.logout();
@@ -330,6 +358,9 @@ public class ClientCLI implements ClientFrontend {
 
     private void showLeaderboard() {
         List<Pair<String, Double>> leaderboard = this.backend.getLeaderboard();
+        for (Pair<String, Double> curr : this.partialLeaderboard) {
+            this.out.format("%s\t%.2f\n", curr.first, curr.second);
+        }
     }
 
     private void handleCommand(Command command) {

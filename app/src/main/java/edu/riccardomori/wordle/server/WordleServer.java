@@ -20,11 +20,12 @@ import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
-import java.util.Collection;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Executors;
@@ -37,9 +38,11 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import edu.riccardomori.wordle.rmi.RMIConstants;
 import edu.riccardomori.wordle.rmi.RMIStatus;
+import edu.riccardomori.wordle.rmi.clientRMI;
 import edu.riccardomori.wordle.rmi.serverRMI;
 import edu.riccardomori.wordle.rmi.exceptions.PasswordIllegalException;
 import edu.riccardomori.wordle.rmi.exceptions.UsernameIllegalException;
+import edu.riccardomori.wordle.utils.Pair;
 
 /**
  * This is the main server class. It handles all the incoming connections with non-blocking
@@ -55,6 +58,10 @@ public final class WordleServer implements serverRMI {
     public static final int SOCKET_MSG_MAX_SIZE = 1024; // Maximum size for each message
     public static final int WORD_MAX_SIZE = 48; // Maximum size in bytes of a word
     public static final int WORD_TRIES = 12; // Number of available tries for each game
+
+    // If there is a change in the leaderboard in a position below this number then the server
+    // notifies all the subscribers
+    public static final int SUBS_THRESHOLD = 3;
 
     // Attributes
     private boolean isConfigured = false; // Flag that forbids running the server if previously it
@@ -73,6 +80,7 @@ public final class WordleServer implements serverRMI {
     private volatile long sWTime;
     private HashSet<String> words = new HashSet<>();
     private Leaderboard leaderboard;
+    private List<clientRMI> subscribers = new ArrayList<>();
 
 
     /**
@@ -170,7 +178,8 @@ public final class WordleServer implements serverRMI {
         }
 
         // Load leaderboard
-        this.leaderboard = new Leaderboard(Collections.unmodifiableCollection(this.users.values()));
+        this.leaderboard = new Leaderboard(Collections.unmodifiableCollection(this.users.values()),
+                WordleServer.SUBS_THRESHOLD);
     }
 
     /**
@@ -195,7 +204,7 @@ public final class WordleServer implements serverRMI {
         try {
             serverRMI stub = (serverRMI) UnicastRemoteObject.exportObject(this, 0);
             Registry registry = LocateRegistry.createRegistry(this.rmiPort);
-            registry.rebind(RMIConstants.RMI_REGISTER, stub);
+            registry.rebind(RMIConstants.SERVER_NAME, stub);
         } catch (RemoteException e) {
             e.printStackTrace();
             System.exit(1);
@@ -247,7 +256,7 @@ public final class WordleServer implements serverRMI {
             throw new PasswordIllegalException("password not valid");
         }
 
-        // Check if exists username
+        // Check if username exists
         if (this.users.containsKey(username))
             return RMIStatus.USER_TAKEN;
 
@@ -256,6 +265,25 @@ public final class WordleServer implements serverRMI {
         this.flush();
 
         return RMIStatus.SUCCESS;
+    }
+
+    @Override
+    public void subscribe(clientRMI client) throws RemoteException {
+        synchronized (this.subscribers) {
+            if (this.subscribers.contains(client))
+                return;
+
+            this.logger.finer("New subscription");
+            this.subscribers.add(client);
+        }
+    }
+
+    @Override
+    public void cancelSubscription(clientRMI client) throws RemoteException {
+        synchronized (this.subscribers) {
+            this.subscribers.remove(client);
+        }
+        this.logger.finer("Removing a subscriber");
     }
 
     /**
@@ -287,6 +315,41 @@ public final class WordleServer implements serverRMI {
 
     public long getNextSWTime() {
         return this.sWTime + this.swRate * 1000;
+    }
+
+    /**
+     * Notify all the subscribers by calling the callback registered
+     */
+    public void notifySubscribers() {
+        // Run in a separate thread to avoid slowing down the server
+        new Thread(() -> {
+            this.logger.fine("Notifying all the subscribers");
+            List<Pair<String, Double>> leaderboard =
+                    this.leaderboard.get(WordleServer.SUBS_THRESHOLD);
+            synchronized (this.subscribers) {
+                Iterator<clientRMI> it = this.subscribers.iterator();
+                while (it.hasNext()) {
+                    // for (clientRMI sub : this.subscribers) {
+                    clientRMI sub = it.next();
+                    try {
+                        sub.updateLeaderboard(leaderboard);
+                    } catch (RemoteException e) {
+                        // Remove the subscriber from the list
+                        it.remove();
+                    }
+                }
+            }
+        }).start();
+    }
+
+    /**
+     * Update the leaderboard by repositioning (updating its score) {@code username}. This might
+     * call the subscribers callback, in case there is a change in the first 3 ranks.
+     * 
+     * @param username The user for which the score must be updated
+     */
+    public void updateLeaderboard(String username, double score) {
+        this.leaderboard.update(username, score);
     }
 
     /**

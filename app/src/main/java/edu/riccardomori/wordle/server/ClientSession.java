@@ -40,6 +40,13 @@ public class ClientSession {
 
     public void close() {
         if (this.user != null) {
+            // If user was playing then lose the game
+            if (this.state.isPlaying()) {
+                this.user.loseGame();
+                WordleServer.getInstance().updateLeaderboard(this.user.getUsername(),
+                        this.user.score());
+            }
+
             this.user.getSession().isActive = false;
             this.user = null;
         }
@@ -250,6 +257,8 @@ public class ClientSession {
         if (this.triesLeft == 0) {
             this.state.stopPlaying();
             this.user.loseGame();
+            WordleServer.getInstance().updateLeaderboard(this.user.getUsername(),
+                    this.user.score());
         }
 
         // Client won
@@ -264,6 +273,8 @@ public class ClientSession {
 
             this.state.stopPlaying();
             this.user.winGame(WordleServer.WORD_TRIES - this.triesLeft);
+            WordleServer.getInstance().updateLeaderboard(this.user.getUsername(),
+                    this.user.score());
 
             this.sendMessage(MessageStatus.SUCCESS, sMsg);
             return;
