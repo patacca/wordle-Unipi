@@ -303,7 +303,7 @@ public class ClientBackend {
 
                 // No more tries. Read the secret word
                 if (triesLeft == 0) {
-                    int secretWordSize = message.message.getInt();
+                    int secretWordSize = message.message.get();
                     byte[] secretWordRaw = new byte[secretWordSize];
                     message.message.get(secretWordRaw);
                     String secretWord = new String(secretWordRaw, StandardCharsets.UTF_8);

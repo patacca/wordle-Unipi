@@ -298,7 +298,7 @@ public class ClientSession {
 
             // No more tries left. Send the secret word alongside its translation
             byte[] encWord = session.secretWord.getBytes(StandardCharsets.UTF_8);
-            sMsg.putInt(encWord.length);
+            sMsg.put((byte) encWord.length);
             sMsg.put(encWord);
             sMsg.put(WordleServer.getInstance().translateWord(session.secretWord)
                     .getBytes(StandardCharsets.UTF_8));
