@@ -21,6 +21,8 @@ public class ServerMain {
     private static int verbosity;
     private static int swRate;
     private static String wordsDb;
+    private static String multicastAddress;
+    private static int multicastPort;
 
     public static void main(String args[]) {
         // Load the configuration
@@ -72,8 +74,8 @@ public class ServerMain {
 
         // Initialize Server
         WordleServer server = WordleServer.getInstance();
-        server.configure(ServerMain.serverPort, ServerMain.rmiPort, ServerMain.swRate,
-                ServerMain.wordsDb);
+        server.configure(ServerMain.multicastAddress, ServerMain.multicastPort,
+                ServerMain.serverPort, ServerMain.rmiPort, ServerMain.swRate, ServerMain.wordsDb);
 
         // Run the server
         server.run();
@@ -94,6 +96,8 @@ public class ServerMain {
         ServerMain.verbosity = Integer.parseInt(prop.getProperty("verbose"));
         ServerMain.swRate = Integer.parseInt(prop.getProperty("secret_word_rate"));
         ServerMain.wordsDb = prop.getProperty("words_db");
+        ServerMain.multicastAddress = prop.getProperty("multicast_address");
+        ServerMain.multicastPort = Integer.parseInt(prop.getProperty("multicast_port"));
         input.close();
     }
 }

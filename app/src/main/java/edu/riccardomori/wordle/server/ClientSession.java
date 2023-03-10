@@ -373,7 +373,9 @@ public class ClientSession {
             this.sendMessage(MessageStatus.NO_GAME);
         } else {
             this.sendMessage(MessageStatus.SUCCESS);
+
             // Actually share
+            WordleServer.getInstance().shareGame(lastGame, this.user.getUsername());
         }
     }
 
