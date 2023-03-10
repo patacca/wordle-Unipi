@@ -50,6 +50,8 @@ public class ClientCLI implements ClientFrontend, clientRMI {
                 return "Show the top of leaderboard";
             case SHOW_FULL_LEADERBOARD:
                 return "Show the full leaderboard";
+            case SHARE:
+                return "Share my last game";
             default:
                 String s = c.toString().toLowerCase();
                 return s.substring(0, 1).toUpperCase() + s.substring(1);
@@ -397,6 +399,17 @@ public class ClientCLI implements ClientFrontend, clientRMI {
         }
     }
 
+    private void shareLastGame() {
+        try {
+            this.backend.shareLastGame();
+            this.out.println("The result has been shared");
+        } catch (NoGameException e) {
+            this.out.println("**You have to complete a game before sharing the result**");
+        } catch (GenericError | IOError e) {
+            this.out.println("**Cannot share the result with the server. Maybe it's down?**");
+        }
+    }
+
     private void handleCommand(Command command) {
         switch (command) {
             case REGISTER:
@@ -416,6 +429,9 @@ public class ClientCLI implements ClientFrontend, clientRMI {
                 break;
             case SHOW_FULL_LEADERBOARD:
                 this.showFullLeaderboard();
+                break;
+            case SHARE:
+                this.shareLastGame();
                 break;
             case LOGOUT:
                 this.logout();

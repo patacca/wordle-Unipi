@@ -21,6 +21,7 @@ import edu.riccardomori.wordle.client.backend.exceptions.GenericError;
 import edu.riccardomori.wordle.client.backend.exceptions.IOError;
 import edu.riccardomori.wordle.client.backend.exceptions.InvalidUserException;
 import edu.riccardomori.wordle.client.backend.exceptions.InvalidWordException;
+import edu.riccardomori.wordle.client.backend.exceptions.NoGameException;
 import edu.riccardomori.wordle.client.backend.exceptions.ServerError;
 import edu.riccardomori.wordle.client.backend.exceptions.UnknownHostException;
 import edu.riccardomori.wordle.client.backend.exceptions.UserTakenException;
@@ -415,6 +416,29 @@ public class ClientBackend {
 
                 return leaderboard;
             } else
+                throw new GenericError();
+        } catch (IOException e) {
+            throw new IOError();
+        }
+    }
+
+    public void shareLastGame() throws GenericError, IOError, NoGameException {
+        // Prepare the SHARE message
+        ByteBuffer data = ByteBuffer.allocate(1);
+        data.put(Action.SHARE.getValue());
+        data.flip();
+
+        try {
+            this.socketWrite(data);
+
+            // Wait for the response
+            MessageStatus status = this.socketGetStatus();
+
+            if (status == MessageStatus.SUCCESS)
+                return;
+            else if (status == MessageStatus.NO_GAME)
+                throw new NoGameException();
+            else
                 throw new GenericError();
         } catch (IOException e) {
             throw new IOError();
