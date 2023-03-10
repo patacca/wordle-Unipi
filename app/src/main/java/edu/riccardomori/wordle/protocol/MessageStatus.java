@@ -9,6 +9,7 @@ public enum MessageStatus {
     NO_TRIES_LEFT((byte) 5),
     INVALID_WORD((byte) 6),
     ALREADY_LOGGED((byte) 7),
+    GAME_WON((byte) 8),
     GENERIC_ERROR((byte) 0xff);
     // @formatter:on
 
@@ -34,6 +35,8 @@ public enum MessageStatus {
                 return INVALID_WORD;
             case 7:
                 return ALREADY_LOGGED;
+            case 8:
+                return GAME_WON;
             default:
                 return GENERIC_ERROR;
         }

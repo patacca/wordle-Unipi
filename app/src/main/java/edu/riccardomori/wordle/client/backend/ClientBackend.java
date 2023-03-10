@@ -301,12 +301,22 @@ public class ClientBackend {
                     partial[k] = message.message.get();
 
                 // No more tries. Read the secret word
-                if (triesLeft == 0 && message.message.hasRemaining()) {
-                    String secretWord = StandardCharsets.UTF_8.decode(message.message).toString();
-                    return new GuessDescriptor(triesLeft, correct, partial, secretWord);
-                } else {
-                    return new GuessDescriptor(triesLeft, correct, partial);
+                if (triesLeft == 0) {
+                    int secretWordSize = message.message.getInt();
+                    byte[] secretWordRaw = new byte[secretWordSize];
+                    message.message.get(secretWordRaw);
+                    String secretWord = new String(secretWordRaw, StandardCharsets.UTF_8);
+                    String translation = StandardCharsets.UTF_8.decode(message.message).toString();
+                    return new GuessDescriptor(triesLeft, correct, partial, secretWord,
+                            translation);
                 }
+
+                return new GuessDescriptor(triesLeft, correct, partial);
+
+            } else if (message.status == MessageStatus.GAME_WON) {
+                int triesLeft = message.message.get();
+                String translation = StandardCharsets.UTF_8.decode(message.message).toString();
+                return new GuessDescriptor(triesLeft, translation);
 
             } else if (message.status == MessageStatus.INVALID_WORD) {
                 throw new InvalidWordException();
@@ -361,13 +371,13 @@ public class ClientBackend {
                 // Parse message
                 List<Pair<String, Double>> leaderboard = new ArrayList<>();
                 int size = msg.message.getInt();
-                for (int k=0; k < size; ++k) {
+                for (int k = 0; k < size; ++k) {
                     int usernameLen = msg.message.getInt();
                     byte[] encUsername = new byte[usernameLen];
                     msg.message.get(encUsername);
                     String username = new String(encUsername, StandardCharsets.UTF_8);
                     double score = msg.message.getDouble();
-                    leaderboard.add(new Pair<String,Double>(username, score));
+                    leaderboard.add(new Pair<String, Double>(username, score));
                 }
 
                 return leaderboard;
@@ -394,13 +404,13 @@ public class ClientBackend {
                 // Parse message
                 List<Pair<String, Double>> leaderboard = new ArrayList<>();
                 int size = msg.message.getInt();
-                for (int k=0; k < size; ++k) {
+                for (int k = 0; k < size; ++k) {
                     int usernameLen = msg.message.getInt();
                     byte[] encUsername = new byte[usernameLen];
                     msg.message.get(encUsername);
                     String username = new String(encUsername, StandardCharsets.UTF_8);
                     double score = msg.message.getDouble();
-                    leaderboard.add(new Pair<String,Double>(username, score));
+                    leaderboard.add(new Pair<String, Double>(username, score));
                 }
 
                 return leaderboard;

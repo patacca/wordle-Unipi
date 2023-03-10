@@ -264,20 +264,21 @@ public class ClientSession {
 
         // Client won
         if (session.secretWord.equals(guessWord)) {
-            ByteBuffer sMsg = ByteBuffer.allocate(3 + guessWord.length());
+            // Send the secret word translation
+            byte[] encTranslation = WordleServer.getInstance().translateWord(session.secretWord)
+                    .getBytes(StandardCharsets.UTF_8);
+            ByteBuffer sMsg = ByteBuffer.allocate(1 + encTranslation.length);
             sMsg.put((byte) this.triesLeft);
-            sMsg.put((byte) guessWord.length()); // correct size
-            sMsg.put((byte) 0); // partial size
-            for (int k = 0; k < guessWord.length(); ++k)
-                sMsg.put((byte) k);
+            sMsg.put(encTranslation);
             sMsg.flip();
 
+            // Update status
             this.state.stopPlaying();
             this.user.winGame(WordleServer.WORD_TRIES - this.triesLeft);
             WordleServer.getInstance().updateLeaderboard(this.user.getUsername(),
                     this.user.score());
 
-            this.sendMessage(MessageStatus.SUCCESS, sMsg);
+            this.sendMessage(MessageStatus.GAME_WON, sMsg);
             return;
         }
 
@@ -305,8 +306,8 @@ public class ClientSession {
 
         // Forge message
         // Let's make the buffer bigger than necessary to avoid unnecessary calculations
-        ByteBuffer sMsg = ByteBuffer
-                .allocate(3 + correct.size() + partial.size() + 4 * session.secretWord.length());
+        ByteBuffer sMsg = ByteBuffer.allocate(3 + correct.size() + partial.size() + Integer.BYTES
+                + 2 * WordleServer.WORD_MAX_SIZE);
         sMsg.put((byte) this.triesLeft);
         sMsg.put((byte) correct.size());
         sMsg.put((byte) partial.size());
@@ -315,9 +316,14 @@ public class ClientSession {
         for (int p : partial)
             sMsg.put((byte) p);
 
-        // No more tries left. Send the secret word
-        if (this.triesLeft == 0)
-            sMsg.put(session.secretWord.getBytes(StandardCharsets.UTF_8));
+        // No more tries left. Send the secret word alongside its translation
+        if (this.triesLeft == 0) {
+            byte[] encWord = session.secretWord.getBytes(StandardCharsets.UTF_8);
+            sMsg.putInt(encWord.length);
+            sMsg.put(encWord);
+            sMsg.put(WordleServer.getInstance().translateWord(session.secretWord)
+                    .getBytes(StandardCharsets.UTF_8));
+        }
 
         sMsg.flip();
 
