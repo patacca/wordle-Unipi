@@ -201,6 +201,23 @@ public final class WordleServer implements serverRMI {
         if (!this.isConfigured)
             throw new RuntimeException("The server must be configured before running.");
 
+        // Initialize the multicastSocket
+        this.initMulticastSocket();
+
+        // Load words
+        this.loadWords();
+
+        // Load the previous server state
+        this.loadPrevState();
+
+        // Run the scheduled services
+        this.runScheduler();
+
+        // Run RMI services
+        this.runRMIServer();
+    }
+
+    private void initMulticastSocket() {
         try {
             // Get one valid interface for multicast
             // If more than one is found, choose one of them non-deterministically
@@ -215,6 +232,7 @@ public final class WordleServer implements serverRMI {
             this.logger.info(String.format("Using interface %s for multicast",
                     this.multicastInterface.getDisplayName()));
 
+            // Create socket and join multicast group
             this.multicastSocket = new MulticastSocket(this.multicastPort);
             this.multicastSocket.joinGroup(
                     new InetSocketAddress(this.multicastAddress, this.multicastPort),
@@ -224,18 +242,6 @@ public final class WordleServer implements serverRMI {
         } catch (IOException e) {
             this.logger.severe("Cannot create a multicast socket");
         }
-
-        // Load words
-        this.loadWords();
-
-        // Load the previous server state
-        this.loadPrevState();
-
-        // Run the scheduled services
-        this.runScheduler();
-
-        // Run RMI services
-        this.runRMIServer();
     }
 
     /**
