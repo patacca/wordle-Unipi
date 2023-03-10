@@ -9,6 +9,7 @@ public enum Action {
     STATS((byte) 4),
     TOP_LEADERBOARD((byte) 5),
     FULL_LEADERBOARD((byte) 6),
+    SHARE((byte) 7),
     UNKNOWN((byte) 0xff);
     // @formatter:on
 
@@ -34,6 +35,8 @@ public enum Action {
                 return TOP_LEADERBOARD;
             case 6:
                 return FULL_LEADERBOARD;
+            case 7:
+                return SHARE;
             default:
                 return UNKNOWN;
         }
