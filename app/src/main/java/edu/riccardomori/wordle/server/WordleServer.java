@@ -7,9 +7,13 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.Reader;
-import java.io.Writer;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.MulticastSocket;
+import java.net.NetworkInterface;
+import java.net.SocketException;
 import java.net.StandardSocketOptions;
 import java.net.URL;
 import java.nio.ByteBuffer;
@@ -29,6 +33,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -63,6 +68,7 @@ public final class WordleServer implements serverRMI {
     private static final String SERVER_STATE_FILE = "server_state.json";
     private static final int TRANSLATION_CACHE = 512;
     public static final int SOCKET_MSG_MAX_SIZE = 1024; // Maximum size for each message
+    public static final int UDP_MSG_MAX_SIZE = 512; // Maximum size for a UDP message
     public static final int WORD_MAX_SIZE = 48; // Maximum size in bytes of a word
     public static final int WORD_TRIES = 12; // Number of available tries for each game
 
@@ -77,10 +83,14 @@ public final class WordleServer implements serverRMI {
     private int rmiPort; // The port of the RMI server
     private int swRate; // Secret Word generation rate (in seconds)
     private String wordsDb; // File that contains the secret words to choose from
+    private String multicastAddress;
+    private int multicastPort;
 
     private Logger logger;
 
     // Scheduler for the current word generation
+    private NetworkInterface multicastInterface;
+    private MulticastSocket multicastSocket;
     private ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
     private Map<String, User> users;
     private volatile String secretWord; // Secret Word
@@ -184,6 +194,51 @@ public final class WordleServer implements serverRMI {
     }
 
     /**
+     * Initialize the server and all its components
+     */
+    private void initialize() {
+        // Check that all the parameters have been configured
+        if (!this.isConfigured)
+            throw new RuntimeException("The server must be configured before running.");
+
+        try {
+            // Get one valid interface for multicast
+            // If more than one is found, choose one of them non-deterministically
+            this.multicastInterface = NetworkInterface.networkInterfaces().filter(iface -> {
+                try {
+                    return iface.isUp() && iface.supportsMulticast() && !iface.isLoopback()
+                            && !iface.getName().equals("");
+                } catch (SocketException e) {
+                    return false;
+                }
+            }).findAny().get();
+            this.logger.info(String.format("Using interface %s for multicast",
+                    this.multicastInterface.getDisplayName()));
+
+            this.multicastSocket = new MulticastSocket(this.multicastPort);
+            this.multicastSocket.joinGroup(
+                    new InetSocketAddress(this.multicastAddress, this.multicastPort),
+                    this.multicastInterface);
+        } catch (NoSuchElementException | SocketException e) {
+            this.logger.severe("Cannot find a valid interface for multicast notifications");
+        } catch (IOException e) {
+            this.logger.severe("Cannot create a multicast socket");
+        }
+
+        // Load words
+        this.loadWords();
+
+        // Load the previous server state
+        this.loadPrevState();
+
+        // Run the scheduled services
+        this.runScheduler();
+
+        // Run RMI services
+        this.runRMIServer();
+    }
+
+    /**
      * Load the previous state from SERVER_STATE_FILE. This will load the users and initialize the
      * previous server state.
      */
@@ -274,12 +329,17 @@ public final class WordleServer implements serverRMI {
     /**
      * Configure the server.
      * 
+     * @param multicastAddress // IP address for the multicast notification service
+     * @param multicastPort // Port number for the multicast notification service
      * @param tcpPort // The port for the server socket
      * @param rmiPort // The port for the RMI server
      * @param swRate // Refresh rate (in seconds) for the secret word
      * @param wordsDb // The file that contains all the secret words to choose from
      */
-    public void configure(int tcpPort, int rmiPort, int swRate, String wordsDb) {
+    public void configure(String multicastAddress, int multicastPort, int tcpPort, int rmiPort,
+            int swRate, String wordsDb) {
+        this.multicastAddress = multicastAddress;
+        this.multicastPort = multicastPort;
         this.tcpPort = tcpPort;
         this.rmiPort = rmiPort;
         this.swRate = swRate;
@@ -426,6 +486,41 @@ public final class WordleServer implements serverRMI {
         }
     }
 
+    public void shareGame(GameDescriptor game, String username) {
+        // Run it in a new thread to avoid slowing down the server
+        new Thread(() -> {
+            // Create the message packet
+            ByteBuffer msg = ByteBuffer.allocate(WordleServer.UDP_MSG_MAX_SIZE);
+            ByteBuffer encUsername = StandardCharsets.UTF_8.encode(username);
+            msg.putInt(encUsername.limit());
+            msg.put(encUsername);
+            msg.putLong(game.gameId);
+            msg.put((byte) game.tries);
+            msg.put((byte) game.maxTries);
+            msg.put((byte) game.wordLen);
+            msg.put((byte) game.correct.length);
+            assert game.correct.length == game.partial.length;
+            for (int k = 0; k < game.correct.length; ++k) {
+                msg.put((byte) game.correct[k].length);
+                msg.put((byte) game.partial[k].length);
+                for (int j = 0; j < game.correct[k].length; ++j)
+                    msg.put((byte) game.correct[k][j]);
+                for (int j = 0; j < game.partial[k].length; ++j)
+                    msg.put((byte) game.partial[k][j]);
+            }
+            msg.flip();
+
+            // Send it
+            try (DatagramSocket ds = new DatagramSocket()) {
+                DatagramPacket packet = new DatagramPacket(msg.array(), msg.limit(),
+                        InetAddress.getByName(this.multicastAddress), this.multicastPort);
+                ds.send(packet);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }).start();
+    }
+
     /**
      * Notify all the subscribers by calling the callback registered
      */
@@ -466,21 +561,7 @@ public final class WordleServer implements serverRMI {
      * previously configured by calling WotdleServer.configure()
      */
     public void run() {
-        // Check that all the parameters were configured
-        if (!this.isConfigured)
-            throw new RuntimeException("The server must be configured before running.");
-
-        // Load words
-        this.loadWords();
-
-        // Load the previous server state
-        this.loadPrevState();
-
-        // Run the scheduled services
-        this.runScheduler();
-
-        // Run RMI services
-        this.runRMIServer();
+        this.initialize();
 
         try (ServerSocketChannel socket = ServerSocketChannel.open();
                 Selector selector = Selector.open()) {
