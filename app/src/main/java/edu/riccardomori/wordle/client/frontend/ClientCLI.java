@@ -359,7 +359,8 @@ public class ClientCLI implements ClientFrontend, clientRMI {
         try {
             UserStats stats = this.backend.getStats();
             this.out.format("  games played: %d\n", stats.totGames);
-            this.out.format("  games won: %d%%\n", 100 * stats.wonGames / stats.totGames);
+            int gameWonPct = 100 * stats.wonGames / (stats.totGames != 0 ? stats.totGames : 1);
+            this.out.format("  games won: %d%%\n", gameWonPct);
             this.out.format("  current winning streak: %d\n", stats.currStreak);
             this.out.format("  best winning streak: %d\n", stats.bestStreak);
             this.out.format("  user score: %.2f\n", stats.score);
