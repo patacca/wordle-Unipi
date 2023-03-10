@@ -39,6 +39,7 @@ import javax.net.ssl.HttpsURLConnection;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonWriter;
 import edu.riccardomori.wordle.rmi.RMIConstants;
 import edu.riccardomori.wordle.rmi.RMIStatus;
 import edu.riccardomori.wordle.rmi.clientRMI;
@@ -58,8 +59,8 @@ public final class WordleServer implements serverRMI {
     private static WordleServer instance; // Singleton instance
 
     // Constants
-    private static final String USERS_DB_FILE = "users.json"; // File where to store the users
-                                                              // credentials
+    // File where to store the previous state of the server
+    private static final String SERVER_STATE_FILE = "server_state.json";
     private static final int TRANSLATION_CACHE = 512;
     public static final int SOCKET_MSG_MAX_SIZE = 1024; // Maximum size for each message
     public static final int WORD_MAX_SIZE = 48; // Maximum size in bytes of a word
@@ -83,6 +84,7 @@ public final class WordleServer implements serverRMI {
     private ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
     private Map<String, User> users;
     private volatile String secretWord; // Secret Word
+    private volatile long gameId = 0; // The game ID associated with the secret word
     private volatile long sWTime;
     private HashSet<String> words = new HashSet<>();
     private Leaderboard leaderboard;
@@ -154,15 +156,27 @@ public final class WordleServer implements serverRMI {
         return WordleServer.instance;
     }
 
-    private synchronized void flush() {
-        // Check whether the data has been loadede before
-        if (this.users == null)
-            return;
+    private void flush() {
+        String usersData;
+        synchronized (this.users) {
+            // Check whether the data has been loaded before so we don't overwrite the file
+            if (this.users == null)
+                return;
 
-        Gson gson = new Gson();
-        String data = gson.toJson(this.users);
-        try (Writer out = new BufferedWriter(new FileWriter(WordleServer.USERS_DB_FILE))) {
-            out.write(data);
+            Gson gson = new Gson();
+            usersData = gson.toJson(this.users);
+        }
+
+        try (JsonWriter writer = new JsonWriter(
+                new BufferedWriter(new FileWriter(WordleServer.SERVER_STATE_FILE)))) {
+
+            // Write the whole object
+            writer.beginObject();
+            writer.name("lastGameID");
+            writer.value(this.gameId);
+            writer.name("users");
+            writer.jsonValue(usersData);
+            writer.endObject();
         } catch (IOException e) {
             e.printStackTrace();
             System.exit(1);
@@ -170,13 +184,34 @@ public final class WordleServer implements serverRMI {
     }
 
     /**
-     * Load the users from the database USERS_DB_FILE.
+     * Load the previous state from SERVER_STATE_FILE. This will load the users and initialize the
+     * previous server state.
      */
-    private void loadUsers() {
-        try (Reader in = new BufferedReader(new FileReader(WordleServer.USERS_DB_FILE))) {
+    private void loadPrevState() {
+        try (JsonReader reader = new JsonReader(
+                new BufferedReader(new FileReader(WordleServer.SERVER_STATE_FILE)))) {
             Gson gson = new Gson();
-            TypeToken<Map<String, User>> type = new TypeToken<Map<String, User>>() {};
-            this.users = gson.fromJson(in, type);
+
+            // Parse the initial Object
+            reader.beginObject();
+            while (reader.hasNext()) {
+                String name = reader.nextName();
+
+                if (name.equals("users")) { // All the users
+                    TypeToken<Map<String, User>> type = new TypeToken<Map<String, User>>() {};
+                    this.users = gson.fromJson(reader, type);
+
+                } else if (name.equals("lastGameID")) { // Last game ID
+                    this.gameId = reader.nextLong();
+
+                } else { // Ignored
+                    this.logger.warning(String
+                            .format("The server state file is corrupted. Unknown key `%s`", name));
+                    reader.skipValue();
+                }
+            }
+            reader.endObject();
+
         } catch (FileNotFoundException e) {
             this.logger.info("User database not found");
             this.users = new HashMap<>();
@@ -230,6 +265,7 @@ public final class WordleServer implements serverRMI {
 
             // Update new secret word
             this.secretWord = newWord;
+            this.gameId++;
             this.sWTime = System.currentTimeMillis();
             this.logger.info(String.format("Secret word changed to `%s`", newWord));
         }, 0, this.swRate, TimeUnit.SECONDS);
@@ -309,12 +345,12 @@ public final class WordleServer implements serverRMI {
     }
 
     /**
-     * Returns the current word
+     * Returns the current secret word and its game ID
      * 
-     * @return The current word
+     * @return The {@code Pair} (current word, gameID)
      */
-    public String getCurrentWord() {
-        return this.secretWord;
+    public Pair<String, Long> getCurrentWord() {
+        return new Pair<String, Long>(this.secretWord, this.gameId);
     }
 
     public boolean isValidWord(String word) {
@@ -437,11 +473,11 @@ public final class WordleServer implements serverRMI {
         // Load words
         this.loadWords();
 
+        // Load the previous server state
+        this.loadPrevState();
+
         // Run the scheduled services
         this.runScheduler();
-
-        // Load the users database
-        this.loadUsers();
 
         // Run RMI services
         this.runRMIServer();

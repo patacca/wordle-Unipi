@@ -11,6 +11,7 @@ public class User {
     // Stats
     private int[] guessDist = new int[WordleServer.WORD_TRIES + 1]; // index start from 1 just for
                                                                     // convenience
+    public GameDescriptor lastGame;
     public int totGames;
     public int wonGames;
     public int currStreak;
@@ -19,6 +20,27 @@ public class User {
     public User(String username, String password) {
         this.username = username;
         this.password = password;
+    }
+
+    private void updateLastGame(boolean gameWon) {
+        // List to array conversion, we know... java is a burden
+        int[][] correct = new int[this.session.correctHints.size()][];
+        for (int i = 0; i < this.session.correctHints.size(); i++)
+            correct[i] =
+                    this.session.correctHints.get(i).stream().mapToInt(Integer::intValue).toArray();
+        int[][] partial = new int[this.session.partialHints.size()][];
+        for (int i = 0; i < this.session.partialHints.size(); i++)
+            partial[i] =
+                    this.session.partialHints.get(i).stream().mapToInt(Integer::intValue).toArray();
+
+        if (gameWon) {
+            this.lastGame = new GameDescriptor(this.session.gameId,
+                    WordleServer.WORD_TRIES - this.session.triesLeft, WordleServer.WORD_TRIES,
+                    this.session.secretWord.length(), correct, partial);
+        } else {
+            this.lastGame = new GameDescriptor(this.session.gameId, -1, WordleServer.WORD_TRIES,
+                    this.session.secretWord.length(), correct, partial);
+        }
     }
 
     public String getUsername() {
@@ -43,10 +65,13 @@ public class User {
         this.bestStreak = Math.max(this.currStreak, this.bestStreak);
         this.wonGames++;
         this.guessDist[tries]++;
+
+        this.updateLastGame(true);
     }
 
     public void loseGame() {
         this.currStreak = 0;
+        this.updateLastGame(false);
     }
 
     /**

@@ -4,10 +4,7 @@ import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.logging.Logger;
 import edu.riccardomori.wordle.protocol.Action;
 import edu.riccardomori.wordle.protocol.ClientState;
@@ -22,7 +19,6 @@ public class ClientSession {
 
     private User user; // The user who is running this session
     private ByteBuffer writeBuf; // The buffer holding the writable data
-    private int triesLeft;
 
     public ClientSession() {
         this.interestOps = SelectionKey.OP_READ;
@@ -201,7 +197,9 @@ public class ClientSession {
         this.logger.info(String.format("User `%s`: action playWORDLE", this.user.getUsername()));
 
         // Get the current word from server
-        String secretWord = WordleServer.getInstance().getCurrentWord();
+        Pair<String, Long> p = WordleServer.getInstance().getCurrentWord();
+        String secretWord = p.first;
+        long gameId = p.second;
         UserSession session = this.user.getSession();
 
         // Check if player already played with that word
@@ -215,20 +213,23 @@ public class ClientSession {
         // Update the session state
         this.state.play();
         session.secretWord = secretWord;
-        this.triesLeft = WordleServer.WORD_TRIES;
+        session.gameId = gameId;
+        session.triesLeft = WordleServer.WORD_TRIES;
         this.user.newGame();
 
         // Prepare the success message
         ByteBuffer msg = ByteBuffer.allocate(Integer.BYTES * 2);
         msg.put((byte) secretWord.length());
-        msg.put((byte) this.triesLeft);
+        msg.put((byte) session.triesLeft);
         msg.flip();
         this.sendMessage(MessageStatus.SUCCESS, msg);
     }
 
     private void guessWordHandler(ByteBuffer msg) {
+        UserSession session = this.user.getSession();
+
         // No leftover tries
-        if (this.triesLeft == 0) {
+        if (session.triesLeft == 0) {
             this.state.stopPlaying();
 
             // Send the time to the next secret word
@@ -236,8 +237,6 @@ public class ClientSession {
                     WordleServer.getInstance().getNextSWTime());
             return;
         }
-
-        UserSession session = this.user.getSession();
 
         // Read the guessed word
         String guessWord = StandardCharsets.UTF_8.decode(msg).toString();
@@ -247,68 +246,42 @@ public class ClientSession {
 
         // Invalid word
         if (!WordleServer.getInstance().isValidWord(guessWord)) {
-            this.sendMessage(MessageStatus.INVALID_WORD, (byte) this.triesLeft);
+            this.sendMessage(MessageStatus.INVALID_WORD, (byte) session.triesLeft);
             return;
         }
 
         // Spend a try
-        this.triesLeft--;
-
-        // If there are no available tries left, end the game
-        if (this.triesLeft == 0) {
-            this.state.stopPlaying();
-            this.user.loseGame();
-            WordleServer.getInstance().updateLeaderboard(this.user.getUsername(),
-                    this.user.score());
-        }
+        session.triesLeft--;
+        session.addHint(guessWord);
 
         // Client won
         if (session.secretWord.equals(guessWord)) {
+            // Update state
+            this.state.stopPlaying();
+            this.user.winGame(WordleServer.WORD_TRIES - session.triesLeft);
+            WordleServer.getInstance().updateLeaderboard(this.user.getUsername(),
+                    this.user.score());
+
             // Send the secret word translation
             byte[] encTranslation = WordleServer.getInstance().translateWord(session.secretWord)
                     .getBytes(StandardCharsets.UTF_8);
             ByteBuffer sMsg = ByteBuffer.allocate(1 + encTranslation.length);
-            sMsg.put((byte) this.triesLeft);
+            sMsg.put((byte) session.triesLeft);
             sMsg.put(encTranslation);
             sMsg.flip();
-
-            // Update status
-            this.state.stopPlaying();
-            this.user.winGame(WordleServer.WORD_TRIES - this.triesLeft);
-            WordleServer.getInstance().updateLeaderboard(this.user.getUsername(),
-                    this.user.score());
 
             this.sendMessage(MessageStatus.GAME_WON, sMsg);
             return;
         }
 
-        // Generate hints
-        List<Integer> correct = new ArrayList<>();
-        List<Integer> partial = new ArrayList<>();
-        Map<Character, Integer> map = new HashMap<>();
-        for (int k = 0; k < session.secretWord.length(); ++k) {
-            if (session.secretWord.charAt(k) == guessWord.charAt(k)) {
-                correct.add(k);
-            } else {
-                int v = map.computeIfAbsent(session.secretWord.charAt(k), i -> 0);
-                map.put(session.secretWord.charAt(k), v + 1);
-            }
-        }
-        for (int k = 0; k < session.secretWord.length(); ++k) {
-            if (session.secretWord.charAt(k) != guessWord.charAt(k)) {
-                int c = map.getOrDefault(guessWord.charAt(k), 0);
-                if (c > 0) {
-                    partial.add(k);
-                    map.put(guessWord.charAt(k), c - 1);
-                }
-            }
-        }
+        List<Integer> correct = session.getLastCorrectHint();
+        List<Integer> partial = session.getLastPartialHint();
 
         // Forge message
         // Let's make the buffer bigger than necessary to avoid unnecessary calculations
         ByteBuffer sMsg = ByteBuffer.allocate(3 + correct.size() + partial.size() + Integer.BYTES
                 + 2 * WordleServer.WORD_MAX_SIZE);
-        sMsg.put((byte) this.triesLeft);
+        sMsg.put((byte) session.triesLeft);
         sMsg.put((byte) correct.size());
         sMsg.put((byte) partial.size());
         for (int p : correct)
@@ -316,8 +289,14 @@ public class ClientSession {
         for (int p : partial)
             sMsg.put((byte) p);
 
-        // No more tries left. Send the secret word alongside its translation
-        if (this.triesLeft == 0) {
+        if (session.triesLeft == 0) {
+            // Update the state. Since there are no more tries left the game is lost
+            this.state.stopPlaying();
+            this.user.loseGame();
+            WordleServer.getInstance().updateLeaderboard(this.user.getUsername(),
+                    this.user.score());
+
+            // No more tries left. Send the secret word alongside its translation
             byte[] encWord = session.secretWord.getBytes(StandardCharsets.UTF_8);
             sMsg.putInt(encWord.length);
             sMsg.put(encWord);
@@ -386,6 +365,18 @@ public class ClientSession {
         this.sendMessage(MessageStatus.SUCCESS, msg);
     }
 
+    private void shareHandler() {
+        this.logger.info(String.format("User %s action SHARE", this.user.getUsername()));
+
+        GameDescriptor lastGame = this.user.lastGame;
+        if (lastGame == null) {
+            this.sendMessage(MessageStatus.NO_GAME);
+        } else {
+            this.sendMessage(MessageStatus.SUCCESS);
+            // Actually share
+        }
+    }
+
     /**
      * Read the message provided in the buffer and perform the action requested considering the
      * current state of the session. Note that the message **must** always be complete. A partial or
@@ -430,6 +421,10 @@ public class ClientSession {
 
                 case FULL_LEADERBOARD:
                     this.fullLeaderboardHandler();
+                    break;
+
+                case SHARE:
+                    this.shareHandler();
                     break;
 
                 default:
