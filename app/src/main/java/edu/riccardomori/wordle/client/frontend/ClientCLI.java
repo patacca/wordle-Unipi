@@ -286,6 +286,7 @@ public class ClientCLI implements ClientFrontend, clientRMI {
         // Main playing loop
         boolean won = false;
         String secretWord = "";
+        String translation = "";
         while (this.triesLeft > 0 && !won) {
             // Read the word in lower case
             this.out.println("`b` to go back");
@@ -304,6 +305,17 @@ public class ClientCLI implements ClientFrontend, clientRMI {
 
                 this.triesLeft = result.triesLeft;
                 secretWord = result.secretWord;
+                translation = result.secretWordTranslation;
+                won = result.gameWon;
+
+                // Populate the hints
+                if (won) {
+                    result.correct = new int[this.wordLen];
+                    result.partial = new int[0];
+                    for (int k = 0; k < this.wordLen; ++k)
+                        result.correct[k] = k;
+                }
+
 
                 // Show the hints
                 StringBuilder sb = new StringBuilder();
@@ -316,9 +328,6 @@ public class ClientCLI implements ClientFrontend, clientRMI {
                 sb.append('\n');
                 this.out.println(sb.toString());
 
-                // Check if we won the game
-                won = (result.correct.length == word.length());
-
             } catch (InvalidWordException e) {
                 this.out.println("Invalid word\n");
             } catch (GenericError e) {
@@ -330,13 +339,15 @@ public class ClientCLI implements ClientFrontend, clientRMI {
 
         if (won) {
             this.out.println("Correct! Congratulations, you found the secret word!");
+            this.out.format("The italian translation is `%s`\n", translation);
             // Fetch stats
             this.showStats();
 
             this.session.stopGame();
         } else if (this.triesLeft == 0) {
             this.out.println("Sorry but you used all the available tries.");
-            this.out.format("The secret word was `%s`\n\n", secretWord);
+            this.out.format("The secret word was `%s`\n", secretWord);
+            this.out.format("The italian translation is `%s`\n\n", translation);
             this.session.stopGame();
         }
     }

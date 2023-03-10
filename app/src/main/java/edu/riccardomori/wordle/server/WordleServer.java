@@ -6,10 +6,12 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.Writer;
 import java.net.InetSocketAddress;
 import java.net.StandardSocketOptions;
+import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
@@ -33,15 +35,17 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
-
+import javax.net.ssl.HttpsURLConnection;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import com.google.gson.stream.JsonReader;
 import edu.riccardomori.wordle.rmi.RMIConstants;
 import edu.riccardomori.wordle.rmi.RMIStatus;
 import edu.riccardomori.wordle.rmi.clientRMI;
 import edu.riccardomori.wordle.rmi.serverRMI;
 import edu.riccardomori.wordle.rmi.exceptions.PasswordIllegalException;
 import edu.riccardomori.wordle.rmi.exceptions.UsernameIllegalException;
+import edu.riccardomori.wordle.utils.LRUCache;
 import edu.riccardomori.wordle.utils.Pair;
 
 /**
@@ -49,12 +53,14 @@ import edu.riccardomori.wordle.utils.Pair;
  * channels. It also handles the generation of the secret word and the authentication of a pair
  * (user, password). It is a singleton class.
  */
+// TODO every once in a while flush everything to the db
 public final class WordleServer implements serverRMI {
     private static WordleServer instance; // Singleton instance
 
     // Constants
     private static final String USERS_DB_FILE = "users.json"; // File where to store the users
                                                               // credentials
+    private static final int TRANSLATION_CACHE = 512;
     public static final int SOCKET_MSG_MAX_SIZE = 1024; // Maximum size for each message
     public static final int WORD_MAX_SIZE = 48; // Maximum size in bytes of a word
     public static final int WORD_TRIES = 12; // Number of available tries for each game
@@ -81,7 +87,9 @@ public final class WordleServer implements serverRMI {
     private HashSet<String> words = new HashSet<>();
     private Leaderboard leaderboard;
     private List<clientRMI> subscribers = new ArrayList<>();
-
+    // Caching the translations of the secret words. TODO make it thread-safe
+    private LRUCache<String, String> translationCache =
+            new LRUCache<>(WordleServer.TRANSLATION_CACHE);
 
     /**
      * Private static class that is used to describe the state of a client connection.
@@ -323,6 +331,63 @@ public final class WordleServer implements serverRMI {
 
     public List<Pair<String, Double>> getFullLeaderboard() {
         return this.leaderboard.get();
+    }
+
+    public String translateWord(String word) {
+        // Cache lookup first
+        if (this.translationCache.containsKey(word))
+            return this.translationCache.get(word);
+
+        // HTTP request to mymemory
+        try {
+            URL url = new URL(String
+                    .format("https://api.mymemory.translated.net/get?q=%s&langpair=en|it", word));
+            HttpsURLConnection connection = (HttpsURLConnection) url.openConnection();
+
+            // Parse json
+            try (JsonReader reader = new JsonReader(
+                    new BufferedReader(new InputStreamReader(connection.getInputStream())))) {
+
+                String translation = null;
+
+                // @formatter:off
+                // The message has this format:
+                //   {"responseData": {"translatedText": String, ...}, ...}
+                // @formatter:on
+                reader.beginObject();
+                while (reader.hasNext()) { // Whole response object
+                    String name = reader.nextName();
+
+                    if (name.equals("responseData")) {
+                        reader.beginObject();
+                        while (reader.hasNext()) { // Whole responseData object
+                            name = reader.nextName();
+                            if (name.equals("translatedText"))
+                                translation = reader.nextString();
+                            else
+                                reader.skipValue();
+                        }
+                        reader.endObject();
+                    } else // Ignore anything else
+                        reader.skipValue();
+                }
+                reader.endObject();
+
+                if (translation == null) {
+                    this.logger.severe("Cannot parse the json response from the mymemory server");
+                    return null;
+                }
+
+                this.translationCache.put(word, translation);
+                return translation;
+            } catch (IOException e) {
+                e.printStackTrace();
+                return null;
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+            return null;
+        }
     }
 
     /**
