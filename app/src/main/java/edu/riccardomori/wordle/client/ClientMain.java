@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
 import edu.riccardomori.wordle.client.frontend.ClientCLI;
+import edu.riccardomori.wordle.client.frontend.ClientFrontend;
 
 public class ClientMain {
     private static final String configFile = "ClientMain.properties";
@@ -13,6 +14,8 @@ public class ClientMain {
     private static String serverHost;
     private static int serverPort;
     private static int rmiPort;
+    private static String multicastAddress;
+    private static int multicastPort;
 
     public static void main(String args[]) {
         // Load the configuration
@@ -25,7 +28,8 @@ public class ClientMain {
         }
 
         // Load frontend
-        ClientCLI client = new ClientCLI(ClientMain.serverHost, ClientMain.serverPort, ClientMain.rmiPort);
+        ClientFrontend client = new ClientCLI(ClientMain.serverHost, ClientMain.serverPort,
+                ClientMain.rmiPort, ClientMain.multicastAddress, ClientMain.multicastPort);
 
         client.run();
     }
@@ -43,6 +47,8 @@ public class ClientMain {
         ClientMain.serverPort = Integer.parseInt(prop.getProperty("server_port"));
         ClientMain.rmiPort = Integer.parseInt(prop.getProperty("rmi_port"));
         ClientMain.serverHost = prop.getProperty("server_host");
+        ClientMain.multicastAddress = prop.getProperty("multicast_address");
+        ClientMain.multicastPort = Integer.parseInt(prop.getProperty("multicast_port"));
         input.close();
     }
 }
