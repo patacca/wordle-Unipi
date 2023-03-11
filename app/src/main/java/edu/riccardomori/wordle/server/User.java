@@ -1,7 +1,16 @@
 package edu.riccardomori.wordle.server;
 
+// @formatter:off
 // Represents a single user account, with all the user stats.
-// The class is not thread-safe so only one owner should operate on it
+// The class is considered to be non thread-safe so only one owner should operate on it,
+// however it is safe to serialize by previously grabbing a lock on the object.
+// Ex:
+//   User user = ....
+//   // Here it is unsafe to serialize user
+//   synchronized (user) {
+//     // Here it is safe to serialize user
+//   }
+// @formatter:on
 public class User {
     // Account details
     private String username;
@@ -11,11 +20,11 @@ public class User {
     // Stats
     private int[] guessDist = new int[WordleServer.WORD_TRIES + 1]; // index start from 1 just for
                                                                     // convenience
-    public GameDescriptor lastGame;
-    public int totGames;
-    public int wonGames;
-    public int currStreak;
-    public int bestStreak;
+    private GameDescriptor lastGame;
+    private int totGames;
+    private int wonGames;
+    private int currStreak;
+    private int bestStreak;
 
     public User(String username, String password) {
         this.username = username;
@@ -53,6 +62,26 @@ public class User {
         return this.username;
     }
 
+    public int getTotGames() {
+        return this.totGames;
+    }
+
+    public int getWonGames() {
+        return this.wonGames;
+    }
+
+    public int getCurrStreak() {
+        return this.currStreak;
+    }
+
+    public int getBestStreak() {
+        return this.bestStreak;
+    }
+
+    public GameDescriptor getLastGame() {
+        return this.lastGame.copy();
+    }
+
     public boolean passwordMatch(String password) {
         return this.password.equals(password);
     }
@@ -63,10 +92,6 @@ public class User {
 
     public void setSession(UserSession session) {
         this.session = session;
-    }
-
-    public void newGame() {
-        this.totGames++;
     }
 
     /**
@@ -88,7 +113,8 @@ public class User {
      * 
      * @param tries number of tries used
      */
-    public void winGame(int tries) {
+    public synchronized void winGame(int tries) {
+        this.totGames++;
         this.currStreak++;
         this.bestStreak = Math.max(this.currStreak, this.bestStreak);
         this.wonGames++;
@@ -100,7 +126,8 @@ public class User {
     /**
      * Register a losing game
      */
-    public void loseGame() {
+    public synchronized void loseGame() {
+        this.totGames++;
         this.currStreak = 0;
         this.updateLastGame(false);
     }

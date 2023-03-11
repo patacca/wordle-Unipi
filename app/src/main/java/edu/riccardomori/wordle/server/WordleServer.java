@@ -28,6 +28,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -171,24 +172,33 @@ public final class WordleServer implements serverRMI {
      * Save the current state to the save file
      */
     private void flush() {
-        String usersData;
         // Check whether the data has been loaded before so we don't overwrite the file
         if (this.users == null)
             return;
 
         Gson gson = new Gson();
-        usersData = gson.toJson(this.users);
 
         try (JsonWriter writer = new JsonWriter(new BufferedWriter(
                 new FileWriter(WordleServer.SERVER_STATE_FILE, StandardCharsets.UTF_8)))) {
 
-            // Write the whole object
-            writer.beginObject();
+            writer.beginObject(); // Begin root object
             writer.name("lastGameID");
             writer.value(this.gameId);
             writer.name("users");
-            writer.jsonValue(usersData);
+
+            // When serializing, in order to avoid concurrent modification to the User objects it is
+            // mandatory to gain the lock over each one of them
+            writer.beginObject();
+            for (Map.Entry<String, User> entry : this.users.entrySet()) {
+                writer.name(entry.getKey());
+                User user = entry.getValue();
+                synchronized (user) {
+                    writer.value(gson.toJson(user));
+                }
+            }
             writer.endObject();
+
+            writer.endObject(); // End root object
         } catch (IOException e) {
             e.printStackTrace();
             System.exit(1);

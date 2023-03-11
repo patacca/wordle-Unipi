@@ -219,7 +219,6 @@ public class ClientSession {
         session.secretWord = secretWord;
         session.gameId = gameId;
         session.triesLeft = WordleServer.WORD_TRIES;
-        this.user.newGame();
 
         // Prepare the success message
         ByteBuffer msg = ByteBuffer.allocate(Integer.BYTES * 2);
@@ -325,10 +324,10 @@ public class ClientSession {
 
         // Prepare the message
         ByteBuffer msg = ByteBuffer.allocate(Integer.BYTES * 4 + Double.BYTES);
-        msg.putInt(this.user.totGames);
-        msg.putInt(this.user.wonGames);
-        msg.putInt(this.user.currStreak);
-        msg.putInt(this.user.bestStreak);
+        msg.putInt(this.user.getTotGames());
+        msg.putInt(this.user.getWonGames());
+        msg.putInt(this.user.getCurrStreak());
+        msg.putInt(this.user.getBestStreak());
         msg.putDouble(this.user.score());
         // TODO put leaderboard position
         msg.flip();
@@ -389,7 +388,7 @@ public class ClientSession {
     private void shareHandler() {
         this.logger.info(String.format("User %s action SHARE", this.user.getUsername()));
 
-        GameDescriptor lastGame = this.user.lastGame;
+        GameDescriptor lastGame = this.user.getLastGame();
         if (lastGame == null) {
             this.sendMessage(MessageStatus.NO_GAME);
         } else {
