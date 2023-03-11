@@ -4,9 +4,8 @@ import java.util.logging.LogRecord;
 import java.util.logging.SimpleFormatter;
 import java.util.logging.StreamHandler;
 
-/**
- * A modified ConsoleHandler that publishes records to System.out
- */
+// A modified StreamHandler that closely resembles a java.util.logging.ConsoleHandler, the
+// difference being that this handler publishes records to System.out
 public class ConsoleHandler extends StreamHandler {
     public ConsoleHandler() {
         super(System.out, new SimpleFormatter());
@@ -22,7 +21,7 @@ public class ConsoleHandler extends StreamHandler {
     }
 
     /**
-     * Override StreamHandler.close to do a flush but not to close the output stream.
+     * Override StreamHandler.close to do a flush and to avoid closing the output stream.
      */
     @Override
     public void close() {

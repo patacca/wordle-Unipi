@@ -54,11 +54,16 @@ import edu.riccardomori.wordle.rmi.exceptions.UsernameIllegalException;
 import edu.riccardomori.wordle.utils.LRUCache;
 import edu.riccardomori.wordle.utils.Pair;
 
-/**
- * This is the main server class. It handles all the incoming connections with non-blocking
- * channels. It also handles the generation of the secret word and the authentication of a pair
- * (user, password). It is a singleton class.
- */
+// @formatter:off
+// This is the main server class. It is a singleton class. It is thread safe.
+// It is responsible for:
+//   - Handling all the incoming connections with non-blocking channels
+//   - Handling the generation of the secret word
+//   - Authenticating the users
+//   - Implementing the remote methods
+//   - Managing the subscribers
+//   - Handling the notification over multicast
+// @formatter:on
 // TODO every once in a while flush everything to the db
 public final class WordleServer implements serverRMI {
     private static WordleServer instance; // Singleton instance
@@ -66,44 +71,42 @@ public final class WordleServer implements serverRMI {
     // Constants
     // File where to store the previous state of the server
     private static final String SERVER_STATE_FILE = "server_state.json";
-    private static final int TRANSLATION_CACHE = 512;
+    private static final int TRANSLATION_CACHE = 512; // The LRU cache size for translations
     public static final int WORD_MAX_SIZE = 48; // Maximum size in bytes of a word
     public static final int WORD_TRIES = 12; // Number of available tries for each game
-
-    // If there is a change in the leaderboard in a position below this number then the server
+    // If there is an update in the leaderboard in a position below this number then the server
     // notifies all the subscribers
     public static final int SUBS_THRESHOLD = 3;
 
-    // Attributes
-    private boolean isConfigured = false; // Flag that forbids running the server if previously it
-                                          // was not configured
+    // Configuration attributes
+    private boolean isConfigured = false; // Flag that forbids running the server if it
+                                          // has not been previously configured
     private int tcpPort; // The port of the server socket
     private int rmiPort; // The port of the RMI server
     private int swRate; // Secret Word generation rate (in seconds)
     private String wordsDb; // File that contains the secret words to choose from
-    private String multicastAddress;
-    private int multicastPort;
+    private String multicastAddress; // Multicast group address
+    private int multicastPort; // Multicast port
 
     private Logger logger;
 
-    // Scheduler for the current word generation
     private NetworkInterface multicastInterface;
     private MulticastSocket multicastSocket;
-    private ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
-    private Map<String, User> users;
-    private volatile String secretWord; // Secret Word
+    private Map<String, User> users; // Map {username -> User}
+    private volatile String secretWord;
     private volatile long gameId = 0; // The game ID associated with the secret word
-    private volatile long sWTime;
-    private HashSet<String> words = new HashSet<>();
+    private volatile long sWTime; // Last time the secret word was generated
     private Leaderboard leaderboard;
+
+    // Scheduler for the current word generation
+    private ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+    private HashSet<String> words = new HashSet<>();
     private List<clientRMI> subscribers = new ArrayList<>();
-    // Caching the translations of the secret words. TODO make it thread-safe
+    // Cache holding the translations of the secret words. TODO make it thread-safe
     private LRUCache<String, String> translationCache =
             new LRUCache<>(WordleServer.TRANSLATION_CACHE);
 
-    /**
-     * Private static class that is used to describe the state of a client connection.
-     */
+    // Private static class that is used to describe the state of a client connection.
     private static class ConnectionState {
         public ClientSession session; // The session object that handles the interaction with the
                                       // client
@@ -123,7 +126,9 @@ public final class WordleServer implements serverRMI {
 
         /**
          * Completes the reading phase. It returns a copy of the ByteBuffer that contains the data
-         * read, then it resets both readBuffer and readMessageSize
+         * read, then it resets both {@code readBuffer} and {@code readMessageSize}
+         * 
+         * @return A {@code ByteBuffer} holding the data read
          */
         public ByteBuffer finishRead() {
             ByteBuffer retBuff = ByteBuffer.wrap(this.readBuffer.array().clone());
@@ -151,19 +156,28 @@ public final class WordleServer implements serverRMI {
     private WordleServer() {
         this.logger = Logger.getLogger("Wordle");
 
-        // Register a shutdown hook to keep syncronized the database
+        // Register a shutdown hook to keep syncronized the persistent state
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            this.logger.finer("Exiting, syncing with the db");
+            this.logger.finer("Exiting, saving the server state");
             this.flush();
         }));
     }
 
+    /**
+     * Get singleton instance. Note that the instance must be configured before being able to run it
+     * 
+     * @return the singleton instance
+     * @see configure
+     */
     public static WordleServer getInstance() {
         if (WordleServer.instance == null)
             WordleServer.instance = new WordleServer();
         return WordleServer.instance;
     }
 
+    /**
+     * Save the current state to the save file
+     */
     private void flush() {
         String usersData;
         synchronized (this.users) {
@@ -175,8 +189,8 @@ public final class WordleServer implements serverRMI {
             usersData = gson.toJson(this.users);
         }
 
-        try (JsonWriter writer = new JsonWriter(
-                new BufferedWriter(new FileWriter(WordleServer.SERVER_STATE_FILE)))) {
+        try (JsonWriter writer = new JsonWriter(new BufferedWriter(
+                new FileWriter(WordleServer.SERVER_STATE_FILE, StandardCharsets.UTF_8)))) {
 
             // Write the whole object
             writer.beginObject();
@@ -202,11 +216,11 @@ public final class WordleServer implements serverRMI {
         // Initialize the multicastSocket
         this.initMulticastSocket();
 
-        // Load words
-        this.loadWords();
-
         // Load the previous server state
         this.loadPrevState();
+
+        // Load words
+        this.loadWords();
 
         // Run the scheduled services
         this.runScheduler();
@@ -215,6 +229,9 @@ public final class WordleServer implements serverRMI {
         this.runRMIServer();
     }
 
+    /**
+     * Initialize the multicast socket
+     */
     private void initMulticastSocket() {
         try {
             // Get one valid interface for multicast
@@ -247,8 +264,8 @@ public final class WordleServer implements serverRMI {
      * previous server state.
      */
     private void loadPrevState() {
-        try (JsonReader reader = new JsonReader(
-                new BufferedReader(new FileReader(WordleServer.SERVER_STATE_FILE)))) {
+        try (JsonReader reader = new JsonReader(new BufferedReader(
+                new FileReader(WordleServer.SERVER_STATE_FILE, StandardCharsets.UTF_8)))) {
             Gson gson = new Gson();
 
             // Parse the initial Object
@@ -279,13 +296,13 @@ public final class WordleServer implements serverRMI {
             System.exit(1);
         }
 
-        // Load leaderboard
+        // Generate the leaderboard
         this.leaderboard = new Leaderboard(Collections.unmodifiableCollection(this.users.values()),
                 WordleServer.SUBS_THRESHOLD);
     }
 
     /**
-     * Load all the possible words in memory
+     * Load all the possible secret words in memory
      */
     private void loadWords() {
         try (BufferedReader input =
@@ -300,22 +317,12 @@ public final class WordleServer implements serverRMI {
     }
 
     /**
-     * Register all the RMI services
+     * Run the scheduler
      */
-    private void runRMIServer() {
-        try {
-            serverRMI stub = (serverRMI) UnicastRemoteObject.exportObject(this, 0);
-            Registry registry = LocateRegistry.createRegistry(this.rmiPort);
-            registry.rebind(RMIConstants.SERVER_NAME, stub);
-        } catch (RemoteException e) {
-            e.printStackTrace();
-            System.exit(1);
-        }
-    }
-
     private void runScheduler() {
         // Change the secret word at the specified rate
         this.scheduler.scheduleAtFixedRate(() -> {
+            // Choose a random word that is different from the current one
             String newWord;
             do {
                 int randPos = ThreadLocalRandom.current().nextInt(this.words.size());
@@ -328,6 +335,20 @@ public final class WordleServer implements serverRMI {
             this.sWTime = System.currentTimeMillis();
             this.logger.info(String.format("Secret word changed to `%s`", newWord));
         }, 0, this.swRate, TimeUnit.SECONDS);
+    }
+
+    /**
+     * Register all the RMI services
+     */
+    private void runRMIServer() {
+        try {
+            serverRMI stub = (serverRMI) UnicastRemoteObject.exportObject(this, 0);
+            Registry registry = LocateRegistry.createRegistry(this.rmiPort);
+            registry.rebind(RMIConstants.SERVER_NAME, stub);
+        } catch (RemoteException e) {
+            e.printStackTrace();
+            System.exit(1);
+        }
     }
 
     /**
