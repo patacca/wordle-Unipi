@@ -1,5 +1,4 @@
 *.jar
-/*.properties
 /*.json
 app/bin
 
