@@ -52,6 +52,7 @@ public class SessionState {
         this.commandSet.add(Command.SHOW_STATS);
         this.commandSet.add(Command.SHOW_LEADERBOARD);
         this.commandSet.add(Command.SHOW_FULL_LEADERBOARD);
+        this.commandSet.add(Command.SHOW_SHARED);
         this.commandSet.add(Command.SHARE);
     }
 
@@ -71,6 +72,7 @@ public class SessionState {
         this.commandSet.remove(Command.SHOW_STATS);
         this.commandSet.remove(Command.SHOW_LEADERBOARD);
         this.commandSet.remove(Command.SHOW_FULL_LEADERBOARD);
+        this.commandSet.remove(Command.SHOW_SHARED);
         this.commandSet.remove(Command.SHARE);
     }
 
