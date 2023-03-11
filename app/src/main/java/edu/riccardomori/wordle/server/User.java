@@ -19,9 +19,15 @@ public class User {
 
     public User(String username, String password) {
         this.username = username;
+        // TODO consider salting and hashing the password
         this.password = password;
     }
 
+    /**
+     * Updates the last game played
+     * 
+     * @param gameWon Whether the gam has been won or lost
+     */
     private void updateLastGame(boolean gameWon) {
         // List to array conversion, we know... java is a burden
         int[][] correct = new int[this.session.correctHints.size()][];
@@ -51,27 +57,16 @@ public class User {
         return this.password.equals(password);
     }
 
+    public UserSession getSession() {
+        return this.session;
+    }
+
+    public void setSession(UserSession session) {
+        this.session = session;
+    }
+
     public void newGame() {
         this.totGames++;
-    }
-
-    /**
-     * Win a game in {@code tries} tries
-     * 
-     * @param tries number of tries used
-     */
-    public void winGame(int tries) {
-        this.currStreak++;
-        this.bestStreak = Math.max(this.currStreak, this.bestStreak);
-        this.wonGames++;
-        this.guessDist[tries]++;
-
-        this.updateLastGame(true);
-    }
-
-    public void loseGame() {
-        this.currStreak = 0;
-        this.updateLastGame(false);
     }
 
     /**
@@ -88,11 +83,25 @@ public class User {
         return (double) sum / this.totGames;
     }
 
-    public UserSession getSession() {
-        return this.session;
+    /**
+     * Register a winning a game in {@code tries} tries
+     * 
+     * @param tries number of tries used
+     */
+    public void winGame(int tries) {
+        this.currStreak++;
+        this.bestStreak = Math.max(this.currStreak, this.bestStreak);
+        this.wonGames++;
+        this.guessDist[tries]++;
+
+        this.updateLastGame(true);
     }
 
-    public void setSession(UserSession session) {
-        this.session = session;
+    /**
+     * Register a losing game
+     */
+    public void loseGame() {
+        this.currStreak = 0;
+        this.updateLastGame(false);
     }
 }

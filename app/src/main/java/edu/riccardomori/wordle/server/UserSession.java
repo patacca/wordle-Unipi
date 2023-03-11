@@ -6,16 +6,23 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+// Descriptor of a user session.
+// This class is not thread safe.
 public class UserSession {
     public boolean isActive = true; // Tells if the session is active or if it has been closed
     public String secretWord; // Last played secret word
-    public long gameId;
+    public long gameId; // Last played gameId
     public int triesLeft;
     public List<List<Integer>> correctHints = new ArrayList<>();
     public List<List<Integer>> partialHints = new ArrayList<>();
 
     public UserSession() {}
 
+    /**
+     * Generate the correct and partial hints and append them in the appropriate class fields
+     * 
+     * @param word The guessed word
+     */
     public void addHint(String word) {
         List<Integer> correct = new ArrayList<>();
         List<Integer> partial = new ArrayList<>();
@@ -41,14 +48,25 @@ public class UserSession {
             }
         }
 
+        // Store the hints
         this.correctHints.add(correct);
         this.partialHints.add(partial);
     }
 
+    /**
+     * Returns the last correct hint
+     * 
+     * @return The last correct hint. The hint is unmodifiable
+     */
     public List<Integer> getLastCorrectHint() {
         return Collections.unmodifiableList(this.correctHints.get(this.correctHints.size() - 1));
     }
-    
+
+    /**
+     * Returns the last partial hint
+     * 
+     * @return The last partial hint. The hint is unmodifiable
+     */
     public List<Integer> getLastPartialHint() {
         return Collections.unmodifiableList(this.partialHints.get(this.partialHints.size() - 1));
     }

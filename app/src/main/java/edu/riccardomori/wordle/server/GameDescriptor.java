@@ -1,6 +1,6 @@
 package edu.riccardomori.wordle.server;
 
-// Describes a game played by someone
+// Describes a completed game, either winning or losing
 public class GameDescriptor {
     public long gameId; // the ID of the game
     public int tries; // Number of tries needed. -1 if game was lost

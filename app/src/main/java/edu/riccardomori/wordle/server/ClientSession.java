@@ -10,12 +10,14 @@ import edu.riccardomori.wordle.protocol.Action;
 import edu.riccardomori.wordle.protocol.ClientState;
 import edu.riccardomori.wordle.protocol.Constants;
 import edu.riccardomori.wordle.protocol.MessageStatus;
-import edu.riccardomori.wordle.server.WordleServer;
 import edu.riccardomori.wordle.utils.Pair;
 
+// Class that handles a client session. The client is solely identified by the tcp session.
+// During a session, the same client can operate different users.
+// This class is not thread-safe.
 public class ClientSession {
     private int interestOps; // The interest set of operations as a bitmask
-    private ClientState state = new ClientState();
+    private ClientState state = new ClientState(); // The current state of the client
     private Logger logger;
 
     private User user; // The user who is running this session
@@ -36,6 +38,9 @@ public class ClientSession {
         return this.writeBuf;
     }
 
+    /**
+     * Close the session
+     */
     public void close() {
         if (this.user != null) {
             // If user was playing then lose the game
@@ -45,6 +50,7 @@ public class ClientSession {
                         this.user.score());
             }
 
+            // Close the user session
             this.user.getSession().isActive = false;
             this.user = null;
         }
@@ -66,18 +72,7 @@ public class ClientSession {
     }
 
     /**
-     * Encode the string message to bytes with utf-8 and calls
-     * {@code sendMessage(code, byteMessage)}
-     * 
-     * @param code The return code that is set in the message
-     * @param message An additional message to send
-     */
-    private void sendMessage(MessageStatus code, String message) {
-        this.sendMessage(code, StandardCharsets.UTF_8.encode(message));
-    }
-
-    /**
-     * Calls {@code sendMessage(code, "")}
+     * Same as {@code sendMessage(code, ByteBuffer.allocate(0))}
      * 
      * @param code The return code that is set in the message
      */
@@ -165,14 +160,16 @@ public class ClientSession {
                     return;
                 }
 
-                // Restore the previous session
+                // Restore the previous session. The other attributes can safely be ignored
                 newSession.secretWord = previousSession.secretWord;
+                newSession.gameId = previousSession.gameId;
             }
 
             // Update the session
             user.setSession(newSession);
         }
 
+        // Now we have established the ownership over the User object
         // Update the state
         this.state.login();
         this.user = user;
@@ -183,6 +180,9 @@ public class ClientSession {
         this.sendMessage(MessageStatus.SUCCESS);
     }
 
+    /**
+     * Logout the user
+     */
     private void logoutHandler() {
         this.logger.info(String.format("User `%s`: action Logout", this.user.getUsername()));
 
@@ -194,6 +194,9 @@ public class ClientSession {
         this.sendMessage(MessageStatus.SUCCESS);
     }
 
+    /**
+     * Start a new game.
+     */
     private void startGameHandler() {
         this.logger.info(String.format("User `%s`: action playWORDLE", this.user.getUsername()));
 
@@ -204,7 +207,7 @@ public class ClientSession {
         UserSession session = this.user.getSession();
 
         // Check if player already played with that word
-        if (secretWord.equals(session.secretWord)) {
+        if (gameId == session.gameId) {
             // Send the time to the next secret word
             this.sendMessage(MessageStatus.ALREADY_PLAYED,
                     WordleServer.getInstance().getNextSWTime());
@@ -226,6 +229,11 @@ public class ClientSession {
         this.sendMessage(MessageStatus.SUCCESS, msg);
     }
 
+    /**
+     * Handler for checking a new guess that the user made.
+     * 
+     * @param msg The message containing the guessed word
+     */
     private void guessWordHandler(ByteBuffer msg) {
         UserSession session = this.user.getSession();
 
@@ -280,8 +288,7 @@ public class ClientSession {
 
         // Forge message
         // Let's make the buffer bigger than necessary to avoid unnecessary calculations
-        ByteBuffer sMsg = ByteBuffer.allocate(3 + correct.size() + partial.size() + Integer.BYTES
-                + 2 * WordleServer.WORD_MAX_SIZE);
+        ByteBuffer sMsg = ByteBuffer.allocate(Constants.SOCKET_MSG_MAX_SIZE);
         sMsg.put((byte) session.triesLeft);
         sMsg.put((byte) correct.size());
         sMsg.put((byte) partial.size());
@@ -310,6 +317,9 @@ public class ClientSession {
         this.sendMessage(MessageStatus.SUCCESS, sMsg);
     }
 
+    /**
+     * Sends the user stats
+     */
     private void statsHandler() {
         this.logger.info(String.format("User %s action STATS", this.user.getUsername()));
 
@@ -326,6 +336,9 @@ public class ClientSession {
         this.sendMessage(MessageStatus.SUCCESS, msg);
     }
 
+    /**
+     * Sends the top of the leaderboard
+     */
     private void topLeaderboardHandler() {
         this.logger.info(String.format("User %s action TOP_LEADERBOARD", this.user.getUsername()));
 
@@ -346,6 +359,10 @@ public class ClientSession {
         this.sendMessage(MessageStatus.SUCCESS, msg);
     }
 
+    // TODO add pagination
+    /**
+     * Sends the full leaderboard
+     */
     private void fullLeaderboardHandler() {
         this.logger.info(String.format("User %s action FULL_LEADERBOARD", this.user.getUsername()));
 
@@ -366,6 +383,9 @@ public class ClientSession {
         this.sendMessage(MessageStatus.SUCCESS, msg);
     }
 
+    /**
+     * Share the user's last game
+     */
     private void shareHandler() {
         this.logger.info(String.format("User %s action SHARE", this.user.getUsername()));
 
