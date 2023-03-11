@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.logging.Logger;
 import edu.riccardomori.wordle.protocol.Action;
 import edu.riccardomori.wordle.protocol.ClientState;
+import edu.riccardomori.wordle.protocol.Constants;
 import edu.riccardomori.wordle.protocol.MessageStatus;
 import edu.riccardomori.wordle.server.WordleServer;
 import edu.riccardomori.wordle.utils.Pair;
@@ -22,7 +23,7 @@ public class ClientSession {
 
     public ClientSession() {
         this.interestOps = SelectionKey.OP_READ;
-        this.writeBuf = ByteBuffer.allocate(WordleServer.SOCKET_MSG_MAX_SIZE);
+        this.writeBuf = ByteBuffer.allocate(Constants.SOCKET_MSG_MAX_SIZE);
 
         this.logger = Logger.getLogger("Wordle");
     }
@@ -332,7 +333,7 @@ public class ClientSession {
         List<Pair<String, Double>> leaderboard = WordleServer.getInstance().getTopLeaderboard();
 
         // Prepare the message
-        ByteBuffer msg = ByteBuffer.allocate(WordleServer.SOCKET_MSG_MAX_SIZE);
+        ByteBuffer msg = ByteBuffer.allocate(Constants.SOCKET_MSG_MAX_SIZE);
         msg.putInt(leaderboard.size());
         for (Pair<String, Double> p : leaderboard) {
             ByteBuffer enc = StandardCharsets.UTF_8.encode(p.first);
@@ -352,7 +353,7 @@ public class ClientSession {
         List<Pair<String, Double>> leaderboard = WordleServer.getInstance().getFullLeaderboard();
 
         // Prepare the message
-        ByteBuffer msg = ByteBuffer.allocate(WordleServer.SOCKET_MSG_MAX_SIZE);
+        ByteBuffer msg = ByteBuffer.allocate(Constants.SOCKET_MSG_MAX_SIZE);
         msg.putInt(leaderboard.size());
         for (Pair<String, Double> p : leaderboard) {
             ByteBuffer enc = StandardCharsets.UTF_8.encode(p.first);
