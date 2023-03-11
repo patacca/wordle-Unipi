@@ -1,5 +1,7 @@
 package edu.riccardomori.wordle.protocol;
 
+// Represents a possible message status that the server sends back to the client after a
+// request has been processed
 public enum MessageStatus {
     // @formatter:off
     SUCCESS((byte) 1),
