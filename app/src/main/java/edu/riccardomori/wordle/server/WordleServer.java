@@ -193,7 +193,7 @@ public final class WordleServer implements serverRMI {
                 writer.name(entry.getKey());
                 User user = entry.getValue();
                 synchronized (user) {
-                    writer.value(gson.toJson(user));
+                    writer.jsonValue(gson.toJson(user));
                 }
             }
             writer.endObject();
