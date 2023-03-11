@@ -6,7 +6,7 @@ import java.util.stream.Collectors;
 
 public enum Command {
     REGISTER(1), LOGIN(2), PLAY(3), SHOW_STATS(4), SHOW_LEADERBOARD(5), SHOW_FULL_LEADERBOARD(
-            6), SHARE(7), LOGOUT(8), EXIT(9), INVALID(-1);
+            6), SHOW_SHARED(7), SHARE(8), LOGOUT(9), EXIT(10), INVALID(-1);
 
     private final int value;
     private final static Map<Integer, Command> map = Arrays.stream(Command.values())

@@ -4,31 +4,38 @@ import java.io.PrintStream;
 import java.rmi.RemoteException;
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.Scanner;
 import java.util.function.Predicate;
 import edu.riccardomori.wordle.client.backend.ClientBackend;
 import edu.riccardomori.wordle.client.backend.GameDescriptor;
+import edu.riccardomori.wordle.client.backend.GameShared;
 import edu.riccardomori.wordle.client.backend.GuessDescriptor;
+import edu.riccardomori.wordle.client.backend.NotificationListener;
 import edu.riccardomori.wordle.client.backend.UserStats;
 import edu.riccardomori.wordle.client.backend.exceptions.*;
 import edu.riccardomori.wordle.rmi.clientRMI;
 import edu.riccardomori.wordle.utils.Pair;
 
 // TODO separate between backend Commands and frontend commands
+// Move constants to protocol/Constants.java
 public class ClientCLI implements ClientFrontend, clientRMI {
     private final PrintStream out = System.out;
     private final Scanner in = new Scanner(System.in);
 
     private SessionState session = new SessionState(); // Describes the state of the current session
     private ClientBackend backend; // The backend implementation of the client
+    private NotificationListener notifications;
 
     private String serverHost; // The server host
     private int triesLeft;
     private int wordLen;
     private volatile List<Pair<String, Double>> partialLeaderboard;
 
-    public ClientCLI(String host, int serverPort, int rmiPort) {
+    public ClientCLI(String host, int serverPort, int rmiPort, String multicastAddress,
+            int multicastPort) {
         this.backend = new ClientBackend(host, serverPort, rmiPort);
+        this.notifications = new NotificationListener(multicastAddress, multicastPort);
         this.serverHost = host;
     }
 
@@ -50,6 +57,8 @@ public class ClientCLI implements ClientFrontend, clientRMI {
                 return "Show the top of leaderboard";
             case SHOW_FULL_LEADERBOARD:
                 return "Show the full leaderboard";
+            case SHOW_SHARED:
+                return "Show all the shared games";
             case SHARE:
                 return "Share my last game";
             default:
@@ -160,6 +169,16 @@ public class ClientCLI implements ClientFrontend, clientRMI {
         this.partialLeaderboard = leaderboard;
     }
 
+    private void startNotificationListener() {
+        try {
+            this.notifications.start();
+        } catch (IfaceExcpetion e) {
+            this.out.println("**Cannot find a valid interface for multicast notifications**");
+        } catch (IOError e) {
+            this.out.println("**Cannot create a multicast socket**");
+        }
+    }
+
     private void register() {
         // Check username & password
         String username = this.readUntil(
@@ -206,6 +225,9 @@ public class ClientCLI implements ClientFrontend, clientRMI {
                 this.out.println("Cannot subscribe to the leaderboard updates");
             }
 
+            // Start the notification listener
+            this.startNotificationListener();
+
             // Update the session state
             this.session.login(username);
         } catch (InvalidUserException e) {
@@ -230,10 +252,14 @@ public class ClientCLI implements ClientFrontend, clientRMI {
 
             this.out.println("Logged out");
 
+            // Unsubscribe from the server notification callbacks
             try {
                 this.backend.unsubscribe(this);
             } catch (Exception e) {
             }
+
+            // Stop the notification listener
+            this.notifications.stop();
 
             // Update the session state
             this.session.logout();
@@ -411,6 +437,44 @@ public class ClientCLI implements ClientFrontend, clientRMI {
         }
     }
 
+    private void showShared() {
+        this.out.println("These are all the games that have been shared\n");
+
+        Map<String, Map<Long, GameShared>> games = this.notifications.getAllData();
+        for (String username : games.keySet()) {
+            // Ignore our own shared games
+            if (this.session.getUsername().equals(username))
+                continue;
+
+            this.out.format("[%s]\n", username);
+            Map<Long, GameShared> userGames = games.get(username);
+
+            // Print each game
+            for (long gameId : userGames.keySet()) {
+                GameShared game = userGames.get(gameId);
+                if (game.tries < 0)
+                    this.out.format("    Wordle %d X/%d\n", gameId, game.maxTries);
+                else
+                    this.out.format("    Wordle %d %d/%d\n", gameId, game.tries, game.maxTries);
+
+                // Print all the hints
+                for (int k = 0; k < game.correct.length; ++k) {
+                    StringBuilder sb = new StringBuilder(" ");
+                    for (int j = 0; j < game.wordLen; ++j)
+                        sb.append(" _");
+                    for (int j = 0; j < game.correct[k].length; ++j)
+                        sb.setCharAt(2 * (game.correct[k][j] + 1), '*');
+                    for (int j = 0; j < game.partial[k].length; ++j)
+                        sb.setCharAt(2 * (game.partial[k][j] + 1), '?');
+                    this.out.format("%s\n", sb.toString());
+                }
+                this.out.println("");
+            }
+
+            this.out.println("");
+        }
+    }
+
     private void handleCommand(Command command) {
         switch (command) {
             case REGISTER:
@@ -430,6 +494,9 @@ public class ClientCLI implements ClientFrontend, clientRMI {
                 break;
             case SHOW_FULL_LEADERBOARD:
                 this.showFullLeaderboard();
+                break;
+            case SHOW_SHARED:
+                this.showShared();
                 break;
             case SHARE:
                 this.shareLastGame();
