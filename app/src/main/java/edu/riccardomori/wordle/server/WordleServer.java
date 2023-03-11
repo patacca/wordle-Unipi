@@ -6,7 +6,6 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -14,7 +13,6 @@ import java.net.MulticastSocket;
 import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.net.StandardSocketOptions;
-import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
@@ -27,19 +25,18 @@ import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
-import javax.net.ssl.HttpsURLConnection;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.JsonReader;
@@ -51,7 +48,6 @@ import edu.riccardomori.wordle.rmi.clientRMI;
 import edu.riccardomori.wordle.rmi.serverRMI;
 import edu.riccardomori.wordle.rmi.exceptions.PasswordIllegalException;
 import edu.riccardomori.wordle.rmi.exceptions.UsernameIllegalException;
-import edu.riccardomori.wordle.utils.LRUCache;
 import edu.riccardomori.wordle.utils.Pair;
 
 // @formatter:off
@@ -71,7 +67,6 @@ public final class WordleServer implements serverRMI {
     // Constants
     // File where to store the previous state of the server
     private static final String SERVER_STATE_FILE = "server_state.json";
-    private static final int TRANSLATION_CACHE = 512; // The LRU cache size for translations
     public static final int WORD_MAX_SIZE = 48; // Maximum size in bytes of a word
     public static final int WORD_TRIES = 12; // Number of available tries for each game
     // If there is an update in the leaderboard in a position below this number then the server
@@ -92,7 +87,7 @@ public final class WordleServer implements serverRMI {
 
     private NetworkInterface multicastInterface;
     private MulticastSocket multicastSocket;
-    private Map<String, User> users; // Map {username -> User}
+    private volatile ConcurrentMap<String, User> users; // Map {username -> User}
     private volatile String secretWord;
     private volatile long gameId = 0; // The game ID associated with the secret word
     private volatile long sWTime; // Last time the secret word was generated
@@ -102,9 +97,6 @@ public final class WordleServer implements serverRMI {
     private ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
     private HashSet<String> words = new HashSet<>();
     private List<clientRMI> subscribers = new ArrayList<>();
-    // Cache holding the translations of the secret words. TODO make it thread-safe
-    private LRUCache<String, String> translationCache =
-            new LRUCache<>(WordleServer.TRANSLATION_CACHE);
 
     // Private static class that is used to describe the state of a client connection.
     private static class ConnectionState {
@@ -180,14 +172,12 @@ public final class WordleServer implements serverRMI {
      */
     private void flush() {
         String usersData;
-        synchronized (this.users) {
-            // Check whether the data has been loaded before so we don't overwrite the file
-            if (this.users == null)
-                return;
+        // Check whether the data has been loaded before so we don't overwrite the file
+        if (this.users == null)
+            return;
 
-            Gson gson = new Gson();
-            usersData = gson.toJson(this.users);
-        }
+        Gson gson = new Gson();
+        usersData = gson.toJson(this.users);
 
         try (JsonWriter writer = new JsonWriter(new BufferedWriter(
                 new FileWriter(WordleServer.SERVER_STATE_FILE, StandardCharsets.UTF_8)))) {
@@ -274,7 +264,8 @@ public final class WordleServer implements serverRMI {
                 String name = reader.nextName();
 
                 if (name.equals("users")) { // All the users
-                    TypeToken<Map<String, User>> type = new TypeToken<Map<String, User>>() {};
+                    TypeToken<ConcurrentMap<String, User>> type =
+                            new TypeToken<ConcurrentMap<String, User>>() {};
                     this.users = gson.fromJson(reader, type);
 
                 } else if (name.equals("lastGameID")) { // Last game ID
@@ -290,15 +281,14 @@ public final class WordleServer implements serverRMI {
 
         } catch (FileNotFoundException e) {
             this.logger.info("User database not found");
-            this.users = new HashMap<>();
+            this.users = new ConcurrentHashMap<String, User>();
         } catch (IOException e) {
             e.printStackTrace();
             System.exit(1);
         }
 
         // Generate the leaderboard
-        this.leaderboard = new Leaderboard(Collections.unmodifiableCollection(this.users.values()),
-                WordleServer.SUBS_THRESHOLD);
+        this.leaderboard = new Leaderboard(Collections.unmodifiableCollection(this.users.values()));
     }
 
     /**
@@ -372,7 +362,6 @@ public final class WordleServer implements serverRMI {
         this.isConfigured = true;
     }
 
-    // TODO Make it thread safe
     @Override
     public RMIStatus register(String username, String password) throws RemoteException {
         this.logger.info("New registration");
@@ -385,13 +374,14 @@ public final class WordleServer implements serverRMI {
             throw new PasswordIllegalException("password not valid");
         }
 
-        // Check if username exists
-        if (this.users.containsKey(username))
-            return RMIStatus.USER_TAKEN;
+        synchronized (this.users) {
+            // Check if username exists
+            if (this.users.containsKey(username))
+                return RMIStatus.USER_TAKEN;
 
-        // Save the user and sync the database
-        this.users.put(username, new User(username, password));
-        this.flush();
+            // Add the user
+            this.users.put(username, new User(username, password));
+        }
 
         return RMIStatus.SUCCESS;
     }
@@ -416,12 +406,13 @@ public final class WordleServer implements serverRMI {
     }
 
     /**
-     * Check if the pair (username, password) correctly identifies a real user, if it does then
-     * returns the {@code User} identified, otherwise returns {@code null}
+     * Check if the pair ({@code username}, {@code password}) correctly identifies a real user, if
+     * it does then returns the {@code User} identified, otherwise returns {@code null}
      * 
      * @param username The username
      * @param password The password
-     * @return The {@code User} identified by the pair (username, password), {@code null} otherwise
+     * @return The {@code User} identified by the pair ({@code username}, {@code password}),
+     *         {@code null} otherwise
      */
     public User getUser(String username, String password) {
         if (this.users.containsKey(username) && this.users.get(username).passwordMatch(password))
@@ -438,79 +429,63 @@ public final class WordleServer implements serverRMI {
         return new Pair<String, Long>(this.secretWord, this.gameId);
     }
 
+    /**
+     * Tells whether the {@code word} is valid
+     * 
+     * @param word
+     * @return True if it is valid, false otherwise
+     */
     public boolean isValidWord(String word) {
         return this.words.contains(word);
     }
 
+    /**
+     * Returns the the next time (in unix time in milliseconds) the secret word is changed
+     * 
+     * @return Unix timestamp in milliseconds
+     */
     public long getNextSWTime() {
         return this.sWTime + this.swRate * 1000;
     }
 
+    /**
+     * Returns the top positions in the leaderboard (up to {@code SUBS_THRESHOLD}) as a list of
+     * pairs (username, score)
+     * 
+     * @return The top positions in the leaderboard (up to {@code SUBS_THRESHOLD})
+     */
     public List<Pair<String, Double>> getTopLeaderboard() {
         return this.leaderboard.get(WordleServer.SUBS_THRESHOLD);
     }
 
+    /**
+     * Returns the full leaderboard as a list of pairs (username, score)
+     * 
+     * @return The full leaderboard
+     */
     public List<Pair<String, Double>> getFullLeaderboard() {
         return this.leaderboard.get();
     }
 
-    public String translateWord(String word) {
-        // Cache lookup first
-        if (this.translationCache.containsKey(word))
-            return this.translationCache.get(word);
-
-        // HTTP request to mymemory
-        try {
-            URL url = new URL(String
-                    .format("https://api.mymemory.translated.net/get?q=%s&langpair=en|it", word));
-            HttpsURLConnection connection = (HttpsURLConnection) url.openConnection();
-
-            // Parse json
-            try (JsonReader reader = new JsonReader(
-                    new BufferedReader(new InputStreamReader(connection.getInputStream())))) {
-
-                String translation = null;
-
-                // @formatter:off
-                // The message has this format:
-                //   {"responseData": {"translatedText": String, ...}, ...}
-                // @formatter:on
-                reader.beginObject();
-                while (reader.hasNext()) { // Whole response object
-                    String name = reader.nextName();
-
-                    if (name.equals("responseData")) {
-                        reader.beginObject();
-                        while (reader.hasNext()) { // Whole responseData object
-                            name = reader.nextName();
-                            if (name.equals("translatedText"))
-                                translation = reader.nextString();
-                            else
-                                reader.skipValue();
-                        }
-                        reader.endObject();
-                    } else // Ignore anything else
-                        reader.skipValue();
-                }
-                reader.endObject();
-
-                if (translation == null) {
-                    this.logger.severe("Cannot parse the json response from the mymemory server");
-                    return null;
-                }
-
-                this.translationCache.put(word, translation);
-                return translation;
-            } catch (IOException e) {
-                e.printStackTrace();
-                return null;
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-            return null;
-        }
+    /**
+     * Update the leaderboard by repositioning (updating its score) {@code username}. This might
+     * call the subscribers callback, in case there is a change in the first {@code SUBS_THRESHOLD}
+     * positions.
+     * 
+     * @param username The user for which the score must be updated
+     */
+    public void updateLeaderboard(String username, double score) {
+        int pos = this.leaderboard.update(username, score);
+        if (pos >= 0 && pos < WordleServer.SUBS_THRESHOLD)
+            this.notifySubscribers();
     }
 
+    /**
+     * Share asynchronously a completed game in the multicast group
+     * 
+     * @param game The game to be shared
+     * @param username The user that played the game
+     */
     public void shareGame(GameDescriptor game, String username) {
         // Run it in a new thread to avoid slowing down the server
         new Thread(() -> {
@@ -547,18 +522,18 @@ public final class WordleServer implements serverRMI {
     }
 
     /**
-     * Notify all the subscribers by calling the callback registered
+     * Notify all the subscribers by calling the callback registered. It runs in a separate thread
      */
     public void notifySubscribers() {
         // Run in a separate thread to avoid slowing down the server
         new Thread(() -> {
             this.logger.fine("Notifying all the subscribers");
+
             List<Pair<String, Double>> leaderboard =
                     this.leaderboard.get(WordleServer.SUBS_THRESHOLD);
             synchronized (this.subscribers) {
                 Iterator<clientRMI> it = this.subscribers.iterator();
                 while (it.hasNext()) {
-                    // for (clientRMI sub : this.subscribers) {
                     clientRMI sub = it.next();
                     try {
                         sub.updateLeaderboard(leaderboard);
@@ -569,16 +544,6 @@ public final class WordleServer implements serverRMI {
                 }
             }
         }).start();
-    }
-
-    /**
-     * Update the leaderboard by repositioning (updating its score) {@code username}. This might
-     * call the subscribers callback, in case there is a change in the first 3 ranks.
-     * 
-     * @param username The user for which the score must be updated
-     */
-    public void updateLeaderboard(String username, double score) {
-        this.leaderboard.update(username, score);
     }
 
     /**
@@ -606,9 +571,6 @@ public final class WordleServer implements serverRMI {
                 while (iter.hasNext()) {
                     SelectionKey key = iter.next();
 
-                    if (!key.isValid())
-                        this.logger.warning("KEY NOT VALID!");
-
                     if (key.isAcceptable()) {
                         // Handle new connection
                         this.handleNewConnection(socket, selector);
@@ -628,8 +590,8 @@ public final class WordleServer implements serverRMI {
     }
 
     /**
-     * Handles a new incoming connection. It initializes the object WordleServerCore for that client
-     * and register the channel to the selector
+     * Handles a new incoming connection. It initializes the ClientSession for that client and
+     * register the channel to the selector
      * 
      * @param serverSocket The server socket channel
      * @param selector The selector where to register the new socket channel

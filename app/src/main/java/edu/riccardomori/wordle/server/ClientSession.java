@@ -264,7 +264,7 @@ public class ClientSession {
                     this.user.score());
 
             // Send the secret word translation
-            byte[] encTranslation = WordleServer.getInstance().translateWord(session.secretWord)
+            byte[] encTranslation = TranslationServer.getInstance().get(session.secretWord)
                     .getBytes(StandardCharsets.UTF_8);
             ByteBuffer sMsg = ByteBuffer.allocate(1 + encTranslation.length);
             sMsg.put((byte) session.triesLeft);
@@ -301,7 +301,7 @@ public class ClientSession {
             byte[] encWord = session.secretWord.getBytes(StandardCharsets.UTF_8);
             sMsg.put((byte) encWord.length);
             sMsg.put(encWord);
-            sMsg.put(WordleServer.getInstance().translateWord(session.secretWord)
+            sMsg.put(TranslationServer.getInstance().get(session.secretWord)
                     .getBytes(StandardCharsets.UTF_8));
         }
 
