@@ -45,6 +45,7 @@ import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
+import edu.riccardomori.wordle.protocol.Constants;
 import edu.riccardomori.wordle.rmi.RMIConstants;
 import edu.riccardomori.wordle.rmi.RMIStatus;
 import edu.riccardomori.wordle.rmi.clientRMI;
@@ -67,8 +68,6 @@ public final class WordleServer implements serverRMI {
     // File where to store the previous state of the server
     private static final String SERVER_STATE_FILE = "server_state.json";
     private static final int TRANSLATION_CACHE = 512;
-    public static final int SOCKET_MSG_MAX_SIZE = 1024; // Maximum size for each message
-    public static final int UDP_MSG_MAX_SIZE = 512; // Maximum size for a UDP message
     public static final int WORD_MAX_SIZE = 48; // Maximum size in bytes of a word
     public static final int WORD_TRIES = 12; // Number of available tries for each game
 
@@ -496,7 +495,7 @@ public final class WordleServer implements serverRMI {
         // Run it in a new thread to avoid slowing down the server
         new Thread(() -> {
             // Create the message packet
-            ByteBuffer msg = ByteBuffer.allocate(WordleServer.UDP_MSG_MAX_SIZE);
+            ByteBuffer msg = ByteBuffer.allocate(Constants.UDP_MSG_MAX_SIZE);
             ByteBuffer encUsername = StandardCharsets.UTF_8.encode(username);
             msg.putInt(encUsername.limit());
             msg.put(encUsername);
@@ -517,10 +516,10 @@ public final class WordleServer implements serverRMI {
             msg.flip();
 
             // Send it
-            try (DatagramSocket ds = new DatagramSocket()) {
+            try {
                 DatagramPacket packet = new DatagramPacket(msg.array(), msg.limit(),
                         InetAddress.getByName(this.multicastAddress), this.multicastPort);
-                ds.send(packet);
+                this.multicastSocket.send(packet);
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -629,7 +628,7 @@ public final class WordleServer implements serverRMI {
         int interestOps = clientSession.getInterestOps();
 
         socket.register(selector, interestOps, new ConnectionState(clientSession,
-                WordleServer.SOCKET_MSG_MAX_SIZE, WordleServer.SOCKET_MSG_MAX_SIZE));
+                Constants.SOCKET_MSG_MAX_SIZE, Constants.SOCKET_MSG_MAX_SIZE));
     }
 
     // @formatter:off
@@ -671,7 +670,7 @@ public final class WordleServer implements serverRMI {
             size = state.readBuffer.position();
 
             // If the size is not acceptable close the connection
-            if (state.readMessageSize > WordleServer.SOCKET_MSG_MAX_SIZE) {
+            if (state.readMessageSize > Constants.SOCKET_MSG_MAX_SIZE) {
                 this.logger.info(String.format(
                         "Message (%d bytes) exceeds maximum size. Closing connection.",
                         state.readMessageSize));
