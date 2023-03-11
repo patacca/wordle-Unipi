@@ -95,7 +95,7 @@ public final class WordleServer implements serverRMI {
     private Leaderboard leaderboard;
 
     // Scheduler for the current word generation
-    private ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+    private ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2);
     private HashSet<String> words = new HashSet<>();
     private List<clientRMI> subscribers = new ArrayList<>();
 
@@ -335,6 +335,11 @@ public final class WordleServer implements serverRMI {
             this.sWTime = System.currentTimeMillis();
             this.logger.info(String.format("Secret word changed to `%s`", newWord));
         }, 0, this.swRate, TimeUnit.SECONDS);
+
+        // Periodically call this.flush
+        this.scheduler.scheduleWithFixedDelay(() -> {
+            this.flush();
+        }, 60, 120, TimeUnit.SECONDS);
     }
 
     /**
