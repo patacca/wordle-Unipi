@@ -8,20 +8,18 @@ import java.util.Map;
 import java.util.TreeMap;
 import edu.riccardomori.wordle.utils.Pair;
 
-// Leadebord implementation
-// All the operations are O(log(n))
-// Every access if mutually exclusive
+// Leadebord implementation. All the operations are O(n)
+// Every access if mutually exclusive.
+// TODO consider using order statistic tree to make update O(log(n))
 public class Leaderboard {
     // The BST ordered by score. The boolean value can safely be ignored
-    // The key (score, username) won't affect the ordering
+    // The key (score, username) are lexicographically ordered
     private TreeMap<Pair<Double, String>, Boolean> leaderboard;
 
     // Map { username -> key in the BST }
     private Map<String, Pair<Double, String>> userKeys;
-    private int threshold; // threshold value for triggering the notification to the subscribers
 
-    public Leaderboard(Collection<User> users, int threshold) {
-        this.threshold = threshold;
+    public Leaderboard(Collection<User> users) {
         this.leaderboard = new TreeMap<Pair<Double, String>, Boolean>();
         this.userKeys = new HashMap<String, Pair<Double, String>>();
 
@@ -65,30 +63,17 @@ public class Leaderboard {
     }
 
     /**
-     * Update the rank of {@code username} in the leaderboard. If this changes the first
-     * {@code this.threshold} positions then notify all the subscribers
+     * Update the rank of {@code username} in the leaderboard and returns it's new position in the
+     * leaderboard
      * 
      * @param username
      * @param score
      */
-    public synchronized void update(String username, Double score) {
-        // Memorize the rank of the user
-        int prevRank = -1;
-        int k = 0;
-        for (Pair<Double, String> curr : this.leaderboard.navigableKeySet()) {
-            if (k >= this.threshold)
-                break;
-            if (curr.second.equals(username)) {
-                prevRank = k;
-                break;
-            }
-            k++;
-        }
-
+    public synchronized int update(String username, Double score) {
         Pair<Double, String> p = this.userKeys.get(username);
         if (p != null) {
             if (p.first == score)
-                return; // Nothing changed, do not update the leaderboard
+                return -1; // Nothing changed, do not update the leaderboard
 
             // Remove the previous node and add the new one afterward
             this.leaderboard.remove(p);
@@ -99,17 +84,15 @@ public class Leaderboard {
         this.leaderboard.put(p, true);
         this.userKeys.put(username, p);
 
-        // Check if the first positions changed
-        k = 0;
+        // Find the new position
+        int k = 0;
         for (Pair<Double, String> curr : this.leaderboard.navigableKeySet()) {
-            if (k >= this.threshold)
-                return;
-            // The leaderboard changed <=> the current user changed rank
-            if (curr.second.equals(username) && k != prevRank) {
-                WordleServer.getInstance().notifySubscribers();
-                return;
-            }
+            if (curr.second.equals(username))
+                return k;
             k++;
         }
+
+        // This never happens
+        throw new RuntimeException();
     }
 }
