@@ -8,7 +8,7 @@ import java.util.Properties;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import edu.riccardomori.wordle.logging.ConsoleHandler;
+import edu.riccardomori.wordle.server.logging.ConsoleHandler;
 
 /**
  * This is the entry point for the server

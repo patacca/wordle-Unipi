@@ -1,4 +1,4 @@
-package edu.riccardomori.wordle.logging;
+package edu.riccardomori.wordle.server.logging;
 
 import java.util.logging.LogRecord;
 import java.util.logging.SimpleFormatter;
