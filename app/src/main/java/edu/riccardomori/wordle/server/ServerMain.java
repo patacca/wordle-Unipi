@@ -10,12 +10,11 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import edu.riccardomori.wordle.server.logging.ConsoleHandler;
 
-/**
- * This is the entry point for the server
- */
+// This is the entry point for the server
 public class ServerMain {
     private static final String configFile = "ServerMain.properties";
 
+    // Static attributes that are read from the configuration file
     private static int serverPort;
     private static int rmiPort;
     private static int verbosity;
@@ -31,6 +30,7 @@ public class ServerMain {
         } catch (Exception e) {
             System.err.format("Error while reading the configuration file '%s'\n",
                     ServerMain.configFile);
+            e.printStackTrace();
             System.exit(1);
         }
 
@@ -88,16 +88,16 @@ public class ServerMain {
      * @throws IOException if there is an error while reading the file
      */
     private static void loadConfig() throws FileNotFoundException, IOException {
-        InputStream input = new FileInputStream(ServerMain.configFile);
-        Properties prop = new Properties();
-        prop.load(input);
-        ServerMain.serverPort = Integer.parseInt(prop.getProperty("server_port"));
-        ServerMain.rmiPort = Integer.parseInt(prop.getProperty("rmi_port"));
-        ServerMain.verbosity = Integer.parseInt(prop.getProperty("verbose"));
-        ServerMain.swRate = Integer.parseInt(prop.getProperty("secret_word_rate"));
-        ServerMain.wordsDb = prop.getProperty("words_db");
-        ServerMain.multicastAddress = prop.getProperty("multicast_address");
-        ServerMain.multicastPort = Integer.parseInt(prop.getProperty("multicast_port"));
-        input.close();
+        try (InputStream input = new FileInputStream(ServerMain.configFile)) {
+            Properties prop = new Properties();
+            prop.load(input);
+            ServerMain.serverPort = Integer.parseInt(prop.getProperty("server_port"));
+            ServerMain.rmiPort = Integer.parseInt(prop.getProperty("rmi_port"));
+            ServerMain.verbosity = Integer.parseInt(prop.getProperty("verbose"));
+            ServerMain.swRate = Integer.parseInt(prop.getProperty("secret_word_rate"));
+            ServerMain.wordsDb = prop.getProperty("words_db");
+            ServerMain.multicastAddress = prop.getProperty("multicast_address");
+            ServerMain.multicastPort = Integer.parseInt(prop.getProperty("multicast_port"));
+        }
     }
 }
