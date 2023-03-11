@@ -1,5 +1,6 @@
 package edu.riccardomori.wordle.server;
 
+
 // Describes a completed game, either winning or losing
 public class GameDescriptor {
     public long gameId; // the ID of the game
@@ -20,5 +21,18 @@ public class GameDescriptor {
         this.wordLen = wordLen;
         this.correct = correct;
         this.partial = partial;
+    }
+
+    public GameDescriptor(GameDescriptor obj) {
+        this.gameId = obj.gameId;
+        this.tries = obj.tries;
+        this.maxTries = obj.maxTries;
+        this.wordLen = obj.wordLen;
+        this.correct = obj.correct.clone();
+        this.partial = obj.partial.clone();
+    }
+
+    public GameDescriptor copy() {
+        return new GameDescriptor(this);
     }
 }
