@@ -1,5 +1,6 @@
 package edu.riccardomori.wordle.client.backend;
 
+// Descriptor of a new game
 public class GameDescriptor {
     public int wordSize;
     public int tries;
