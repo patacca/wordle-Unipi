@@ -26,6 +26,7 @@ import edu.riccardomori.wordle.client.backend.exceptions.ServerError;
 import edu.riccardomori.wordle.client.backend.exceptions.UnknownHostException;
 import edu.riccardomori.wordle.client.backend.exceptions.UserTakenException;
 import edu.riccardomori.wordle.protocol.Action;
+import edu.riccardomori.wordle.protocol.Constants;
 import edu.riccardomori.wordle.protocol.MessageStatus;
 import edu.riccardomori.wordle.rmi.RMIConstants;
 import edu.riccardomori.wordle.rmi.RMIStatus;
@@ -33,10 +34,10 @@ import edu.riccardomori.wordle.rmi.clientRMI;
 import edu.riccardomori.wordle.rmi.serverRMI;
 import edu.riccardomori.wordle.utils.Pair;
 
+// Client backend that handles all the communication with the server through the TCP socket.
+// It also manages the subscription to the remote callback for the notifications about the
+// leadeboard
 public class ClientBackend {
-    // Constants
-    public static final int SOCKET_MSG_MAX_SIZE = 1024; // Maximum size for each message
-
     private final int socketTimeout = 10000; // Timeout for reading on the socket
     private String serverHost; // The server host
     private int serverPort; // The port of the server socket
@@ -70,6 +71,12 @@ public class ClientBackend {
         this.rmiPort = rmiPort;
     }
 
+    /**
+     * Read from the socket a message and returns just the status code
+     * 
+     * @return {@code MessageStatus} representing the status code of the operation
+     * @throws IOException
+     */
     private MessageStatus socketGetStatus() throws IOException {
         DataInputStream input =
                 new DataInputStream(new BufferedInputStream(this.socket.getInputStream()));
@@ -78,6 +85,12 @@ public class ClientBackend {
         return MessageStatus.fromByte(message[0]);
     }
 
+    /**
+     * Read from the socket a message and returns both the status code and the additional message
+     * 
+     * @return {@code Message} containing the status code and the message
+     * @throws IOException
+     */
     private Message socketGetMessage() throws IOException {
         DataInputStream input =
                 new DataInputStream(new BufferedInputStream(this.socket.getInputStream()));
@@ -114,6 +127,12 @@ public class ClientBackend {
         out.flush();
     }
 
+    /**
+     * Subscribe to the server sending the {@code clientRMI} object for the callback
+     * 
+     * @param client The {@code clientRMI} object that is sent to server
+     * @throws GenericError
+     */
     public void subscribe(clientRMI client) throws GenericError {
         try {
             Registry registry = LocateRegistry.getRegistry(this.serverHost, this.rmiPort);
@@ -126,11 +145,17 @@ public class ClientBackend {
         }
     }
 
-    public void unsubscribe(clientRMI client) throws GenericError {
+    /**
+     * Unsubscribe from the callback system
+     * 
+     * @throws GenericError
+     */
+    public void unsubscribe() throws GenericError {
         try {
             Registry registry = LocateRegistry.getRegistry(this.serverHost, this.rmiPort);
             serverRMI service = (serverRMI) registry.lookup(RMIConstants.SERVER_NAME);
             service.cancelSubscription(this.clientStub);
+            this.clientStub = null; // Free resources
         } catch (NotBoundException | RemoteException e) {
             throw new GenericError();
         }
@@ -178,7 +203,7 @@ public class ClientBackend {
     public void login(String username, String password) throws InvalidUserException,
             UnknownHostException, GenericError, IOError, AlreadyLoggedException {
         // Prepare the login message
-        ByteBuffer data = ByteBuffer.allocate(ClientBackend.SOCKET_MSG_MAX_SIZE);
+        ByteBuffer data = ByteBuffer.allocate(Constants.SOCKET_MSG_MAX_SIZE);
         data.put(Action.LOGIN.getValue());
         data.put((byte) username.length());
         data.put((byte) password.length());
@@ -210,7 +235,7 @@ public class ClientBackend {
     /**
      * Sends the PLAY message to server to start a new game. It returns a game descriptor
      * 
-     * @return The game descriptor containing the size of the secret word and the number of
+     * @return {@code GameDescriptor} containing the size of the secret word and the number of
      *         availables tries
      * @throws GenericError
      * @throws IOError
@@ -275,6 +300,16 @@ public class ClientBackend {
         }
     }
 
+    /**
+     * Send a word to the server trying to guess the secret word
+     * 
+     * @param word The guessed secret word
+     * @return {@code GuessDescriptor} describing the result of the guess
+     * @throws InvalidWordException
+     * @throws GenericError
+     * @throws IOError
+     * @see GuessDescriptor
+     */
     public GuessDescriptor sendWord(String word)
             throws InvalidWordException, GenericError, IOError {
         // Prepare the sendWord message
@@ -328,6 +363,13 @@ public class ClientBackend {
         }
     }
 
+    /**
+     * Retrieve the personal stats from the server
+     * 
+     * @return {@code UserStats} containing all the stats
+     * @throws GenericError
+     * @throws IOError
+     */
     public UserStats getStats() throws GenericError, IOError {
         // Prepare the STATS message
         ByteBuffer data = ByteBuffer.allocate(1);
@@ -356,6 +398,13 @@ public class ClientBackend {
         }
     }
 
+    /**
+     * Get the top leaderboard
+     * 
+     * @return The list of pairs (username, score) in the order they appear in the leaderboard
+     * @throws GenericError
+     * @throws IOError
+     */
     public List<Pair<String, Double>> getLeaderboard() throws GenericError, IOError {
         // Prepare the TOP_LEADERBOARD message
         ByteBuffer data = ByteBuffer.allocate(1);
@@ -389,6 +438,13 @@ public class ClientBackend {
         }
     }
 
+    /**
+     * Get the full leaderboard
+     * 
+     * @return The list of pairs (username, score) in the order they appear in the leaderboard
+     * @throws GenericError
+     * @throws IOError
+     */
     public List<Pair<String, Double>> getFullLeaderboard() throws GenericError, IOError {
         // Prepare the FULL_LEADERBOARD message
         ByteBuffer data = ByteBuffer.allocate(1);
@@ -422,6 +478,13 @@ public class ClientBackend {
         }
     }
 
+    /**
+     * Share the last game completed
+     * 
+     * @throws GenericError
+     * @throws IOError
+     * @throws NoGameException
+     */
     public void shareLastGame() throws GenericError, IOError, NoGameException {
         // Prepare the SHARE message
         ByteBuffer data = ByteBuffer.allocate(1);

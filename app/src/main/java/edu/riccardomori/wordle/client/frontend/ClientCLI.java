@@ -48,7 +48,7 @@ public class ClientCLI implements ClientFrontend, clientRMI {
     private void exit(int ret) {
         // Unsubscribe from the server
         try {
-            this.backend.unsubscribe(this);
+            this.backend.unsubscribe();
         } catch (Exception e) {
         }
 
@@ -279,10 +279,9 @@ public class ClientCLI implements ClientFrontend, clientRMI {
             this.backend.logout();
 
             this.out.println("Logged out");
-
             // Unsubscribe from the server notification callbacks
             try {
-                this.backend.unsubscribe(this);
+                this.backend.unsubscribe();
             } catch (Exception e) {
             }
 

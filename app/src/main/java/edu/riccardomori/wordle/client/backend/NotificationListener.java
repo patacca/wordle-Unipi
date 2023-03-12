@@ -15,19 +15,29 @@ import edu.riccardomori.wordle.client.backend.exceptions.IOError;
 import edu.riccardomori.wordle.client.backend.exceptions.IfaceExcpetion;
 import edu.riccardomori.wordle.protocol.Constants;
 
+// Listen for notifications shared by other users in the multicast group
 public class NotificationListener {
-    private String address;
-    private int port;
-    private NetworkInterface iface;
-    private MulticastSocket socket;
+    private String address; // multicast group address
+    private int port; // multicast port
+    private NetworkInterface iface; // multicast interface
+    private MulticastSocket socket; // multicast socket
+
+    // Map containing all the games shared by other players
+    // It has the following format: { username : { gameID : GAME, ... }, ... }
     private volatile Map<String, Map<Long, GameShared>> gamesShared;
-    private Thread daemonListener;
+    private Thread daemonListener; // background thread listening for new messages
 
     public NotificationListener(String address, int port) {
         this.address = address;
         this.port = port;
     }
 
+    /**
+     * Initialize the multicast socket
+     * 
+     * @throws IOError
+     * @throws IfaceExcpetion
+     */
     private void initSocket() throws IOError, IfaceExcpetion {
         try {
             // Get one valid interface for multicast
@@ -51,6 +61,12 @@ public class NotificationListener {
         }
     }
 
+    /**
+     * Start listening on the multicast group
+     * 
+     * @throws IOError
+     * @throws IfaceExcpetion
+     */
     public void start() throws IOError, IfaceExcpetion {
         this.initSocket();
 
@@ -118,10 +134,21 @@ public class NotificationListener {
         this.daemonListener.start();
     }
 
+    /**
+     * Stop listening
+     */
     public void stop() {
         this.daemonListener.interrupt();
     }
 
+    // @formatter:off
+    /**
+     * Returns all the previously stored games and clean them from the internal storage
+     * 
+     * @return All the games shared by other users in the following format:
+     *         { username : { gameID : GAME, ... }, ... }
+     */
+    // @formatter:on
     public Map<String, Map<Long, GameShared>> getAllData() {
         Map<String, Map<Long, GameShared>> games;
         synchronized (this.gamesShared) {
