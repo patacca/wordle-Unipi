@@ -17,29 +17,36 @@ import edu.riccardomori.wordle.client.backend.exceptions.*;
 import edu.riccardomori.wordle.rmi.clientRMI;
 import edu.riccardomori.wordle.utils.Pair;
 
-// TODO separate between backend Commands and frontend commands
-// Move constants to protocol/Constants.java
+// Command line frontend
 public class ClientCLI implements ClientFrontend, clientRMI {
     private final PrintStream out = System.out;
     private final Scanner in = new Scanner(System.in);
 
     private SessionState session = new SessionState(); // Describes the state of the current session
     private ClientBackend backend; // The backend implementation of the client
-    private NotificationListener notifications;
+    // Listen for the notifications shared by the server
+    private NotificationListener notificationListener;
 
     private String serverHost; // The server host
     private int triesLeft;
     private int wordLen;
-    private volatile List<Pair<String, Double>> partialLeaderboard;
+    // The top positions of the leaderboard
+    private volatile List<Pair<String, Double>> topLeaderboard;
 
     public ClientCLI(String host, int serverPort, int rmiPort, String multicastAddress,
             int multicastPort) {
         this.backend = new ClientBackend(host, serverPort, rmiPort);
-        this.notifications = new NotificationListener(multicastAddress, multicastPort);
+        this.notificationListener = new NotificationListener(multicastAddress, multicastPort);
         this.serverHost = host;
     }
 
+    /**
+     * Gracefully exit the program
+     * 
+     * @param ret The return code
+     */
     private void exit(int ret) {
+        // Unsubscribe from the server
         try {
             this.backend.unsubscribe(this);
         } catch (Exception e) {
@@ -49,6 +56,12 @@ public class ClientCLI implements ClientFrontend, clientRMI {
         System.exit(ret);
     }
 
+    /**
+     * Map every command to a human readable string describing the action
+     * 
+     * @param c The command
+     * @return The String description of the action
+     */
     private String prettifyCommand(Command c) {
         switch (c) {
             case SHOW_STATS:
@@ -67,6 +80,9 @@ public class ClientCLI implements ClientFrontend, clientRMI {
         }
     }
 
+    /**
+     * Print all the available actions
+     */
     private void printActions() {
         this.out.println("\nChoose one of these actions");
         int k = 1;
@@ -166,12 +182,15 @@ public class ClientCLI implements ClientFrontend, clientRMI {
 
     @Override
     public void updateLeaderboard(List<Pair<String, Double>> leaderboard) throws RemoteException {
-        this.partialLeaderboard = leaderboard;
+        this.topLeaderboard = leaderboard;
     }
 
+    /**
+     * Start listening for notifications
+     */
     private void startNotificationListener() {
         try {
-            this.notifications.start();
+            this.notificationListener.start();
         } catch (IfaceExcpetion e) {
             this.out.println("**Cannot find a valid interface for multicast notifications**");
         } catch (IOError e) {
@@ -179,6 +198,9 @@ public class ClientCLI implements ClientFrontend, clientRMI {
         }
     }
 
+    /**
+     * Register a new user
+     */
     private void register() {
         // Check username & password
         String username = this.readUntil(
@@ -196,7 +218,7 @@ public class ClientCLI implements ClientFrontend, clientRMI {
             this.out.println("Successfully registered!");
 
             // Update session
-            this.session.registered();
+            this.session.register();
         } catch (UserTakenException e) {
             this.out.println("Username already taken.");
         } catch (ServerError e) {
@@ -206,6 +228,9 @@ public class ClientCLI implements ClientFrontend, clientRMI {
         }
     }
 
+    /**
+     * Login on the server
+     */
     private void login() {
         String username = this.readUntil((input) -> input.length() < 256,
                 "The username is too large.", "Enter your username > ");
@@ -245,6 +270,9 @@ public class ClientCLI implements ClientFrontend, clientRMI {
         }
     }
 
+    /**
+     * Logout from the server
+     */
     private void logout() {
         // Call backend
         try {
@@ -259,7 +287,7 @@ public class ClientCLI implements ClientFrontend, clientRMI {
             }
 
             // Stop the notification listener
-            this.notifications.stop();
+            this.notificationListener.stop();
 
             // Update the session state
             this.session.logout();
@@ -270,6 +298,11 @@ public class ClientCLI implements ClientFrontend, clientRMI {
         }
     }
 
+    /**
+     * Start a new game
+     * 
+     * @return True if the game was correctly started, false otherwise
+     */
     private boolean startGame() {
         // Call backend
         try {
@@ -300,6 +333,9 @@ public class ClientCLI implements ClientFrontend, clientRMI {
         return false;
     }
 
+    /**
+     * Play either an existing already started game or start a new one.
+     */
     private void play() {
         // If not already playing then start new game
         if (!this.session.isPlaying())
@@ -344,7 +380,6 @@ public class ClientCLI implements ClientFrontend, clientRMI {
                         result.correct[k] = k;
                 }
 
-
                 // Show the hints
                 StringBuilder sb = new StringBuilder();
                 for (int k = 0; k < prefix.length() + this.wordLen; ++k)
@@ -365,6 +400,7 @@ public class ClientCLI implements ClientFrontend, clientRMI {
             }
         }
 
+        // Show final message
         if (won) {
             this.out.println("Correct! Congratulations, you found the secret word!");
             this.out.format("The italian translation is `%s`\n", translation);
@@ -380,6 +416,9 @@ public class ClientCLI implements ClientFrontend, clientRMI {
         }
     }
 
+    /**
+     * Show personal stats
+     */
     private void showStats() {
         this.out.println("Stats:");
         try {
@@ -395,10 +434,13 @@ public class ClientCLI implements ClientFrontend, clientRMI {
         }
     }
 
+    /**
+     * Show the top positions of the leaderboard
+     */
     private void showLeaderboard() {
-        if (this.partialLeaderboard == null) {
+        if (this.topLeaderboard == null) {
             try {
-                this.partialLeaderboard = this.backend.getLeaderboard();
+                this.topLeaderboard = this.backend.getLeaderboard();
             } catch (GenericError | IOError e) {
                 this.out.println("**Cannot retrieve the leaderboard from the server**");
                 return;
@@ -406,12 +448,15 @@ public class ClientCLI implements ClientFrontend, clientRMI {
         }
         this.out.println("Leaderboard:");
         int k = 1;
-        for (Pair<String, Double> curr : this.partialLeaderboard) {
+        for (Pair<String, Double> curr : this.topLeaderboard) {
             this.out.format(" %d.   %.2f\t%s\n", k, curr.second, curr.first);
             ++k;
         }
     }
 
+    /**
+     * Show the full leaderboard
+     */
     private void showFullLeaderboard() {
         try {
             List<Pair<String, Double>> leaderboard = this.backend.getFullLeaderboard();
@@ -426,6 +471,9 @@ public class ClientCLI implements ClientFrontend, clientRMI {
         }
     }
 
+    /**
+     * Share the last game played with everybody
+     */
     private void shareLastGame() {
         try {
             this.backend.shareLastGame();
@@ -437,11 +485,14 @@ public class ClientCLI implements ClientFrontend, clientRMI {
         }
     }
 
+    /**
+     * Show all the games shared with us
+     */
     private void showShared() {
         this.out.println("These are all the games that have been shared\n");
 
-        Map<String, Map<Long, GameShared>> games = this.notifications.getAllData();
-        for (String username : games.keySet()) {
+        Map<String, Map<Long, GameShared>> games = this.notificationListener.getAllData();
+        for (String username : games.keySet()) { // For every user
             // Ignore our own shared games
             if (this.session.getUsername().equals(username))
                 continue;
@@ -450,7 +501,7 @@ public class ClientCLI implements ClientFrontend, clientRMI {
             Map<Long, GameShared> userGames = games.get(username);
 
             // Print each game
-            for (long gameId : userGames.keySet()) {
+            for (long gameId : userGames.keySet()) { // For every game
                 GameShared game = userGames.get(gameId);
                 if (game.tries < 0)
                     this.out.format("    Wordle %d X/%d\n", gameId, game.maxTries);
@@ -469,10 +520,10 @@ public class ClientCLI implements ClientFrontend, clientRMI {
                     this.out.format("%s\n", sb.toString());
                 }
                 this.out.println("");
-            }
+            } // game
 
             this.out.println("");
-        }
+        } // user
     }
 
     private void handleCommand(Command command) {
@@ -511,9 +562,12 @@ public class ClientCLI implements ClientFrontend, clientRMI {
         }
     }
 
+    /**
+     * Main client loop
+     */
     public void run() {
         this.out.println("Welcome to WORDLE");
-        this.out.println("a game for smart people\n");
+        this.out.println("a game for smart people ;-)\n");
 
         // Main client loop
         while (true) {

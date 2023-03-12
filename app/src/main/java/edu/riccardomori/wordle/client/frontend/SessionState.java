@@ -4,9 +4,8 @@ import java.util.SortedSet;
 import java.util.TreeSet;
 import edu.riccardomori.wordle.protocol.ClientState;
 
-/**
- * Descriptor of the client session
- */
+// Descriptor of the client session.
+// It also contains all the legal commands at any moment.
 public class SessionState {
     private ClientState state = new ClientState(); // The state of the client in the communication
     private String username; // Only set if logged in
@@ -28,19 +27,46 @@ public class SessionState {
         return this.commandSet;
     }
 
+    /**
+     * Get the {@code Command} identified by the relative index {@code i} (starting from 1) in the
+     * list of available commands. If it is not found returns the default value.
+     * 
+     * @param i The relative index of the {@code Command} to retrieve
+     * @param defaultValue The default value to be returned if no command is identified by the
+     *        specified index
+     * @return The {@code Command} identified or the default value
+     */
     public Command getCommandByIndex(int i, Command defaultValue) {
-        for (Command curr : this.commandSet) {
-            --i;
-            if (i == 0)
-                return curr;
+        try {
+            return this.commandSet.stream().skip(i - 1).findFirst().orElse(defaultValue);
+        } catch (IllegalArgumentException e) {
+            return defaultValue;
         }
-        return defaultValue;
     }
 
+    /**
+     * Same as {@code getCommandByIndex(i, Command.INVALID)}
+     * 
+     * @param i The relative index of the {@code Command} to retrieve
+     * @return The {@code Command} identified or {@code INVALID}
+     */
     public Command getCommandByIndex(int i) {
         return this.getCommandByIndex(i, Command.INVALID);
     }
 
+    public boolean isLogged() {
+        return this.state.isLogged();
+    }
+
+    public boolean isPlaying() {
+        return this.state.isPlaying();
+    }
+
+    /**
+     * Update the status after a successfull login
+     * 
+     * @param username The username
+     */
     public void login(String username) {
         this.state.login();
         this.username = username;
@@ -56,11 +82,17 @@ public class SessionState {
         this.commandSet.add(Command.SHARE);
     }
 
-    public void registered() {
+    /**
+     * Update status after a successfull registration
+     */
+    public void register() {
         this.commandSet.add(Command.LOGIN);
         this.commandSet.remove(Command.REGISTER);
     }
 
+    /**
+     * Update status after a successfull logout
+     */
     public void logout() {
         this.state.logout();
         this.username = null;
@@ -76,19 +108,17 @@ public class SessionState {
         this.commandSet.remove(Command.SHARE);
     }
 
+    /**
+     * Update status after starting a game
+     */
     public void startGame() {
         this.state.play();
     }
 
+    /**
+     * Update status after stopping a game
+     */
     public void stopGame() {
         this.state.stopPlaying();
-    }
-
-    public boolean isLogged() {
-        return this.state.isLogged();
-    }
-
-    public boolean isPlaying() {
-        return this.state.isPlaying();
     }
 }
