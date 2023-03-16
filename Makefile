@@ -1,8 +1,10 @@
-BASE_PATH := ./app/src/main/java
+PRJ_PATH := ./app/src/main
+BASE_PATH := $(PRJ_PATH)/java
 PKG_PATH := edu/riccardomori/wordle
 PROJECT_PATH := $(BASE_PATH)/$(PKG_PATH)
 BUILD_PATH := ./build
 BUILD_FULL_PATH := $(BUILD_PATH)/$(PKG_PATH)
+RESOURCES_PATH := $(PRJ_PATH)/resources
 
 SRC := $(shell find $$BASE_PATH -name '*.java' | while read aa; do echo $${aa#*app/src/main/java/edu/riccardomori/wordle/}; done)
 SRC := $(SRC:.java=.class)
@@ -21,8 +23,9 @@ $(BUILD_PATH)/$(PKG_PATH)/%.class: $(PROJECT_PATH)/%.java
 
 jar: all
 	cp -r META-INF $(BUILD_PATH)/
+	cp -r $(RESOURCES_PATH)/* $(BUILD_PATH)
 	sed -i 's/server.ServerMain/client.ClientMain/g' $(BUILD_PATH)/META-INF/MANIFEST.MF
-	cd $(BUILD_PATH) && jar -c -v -m META-INF/MANIFEST.MF -f client.jar $$(find . -name '*.class')
+	cd $(BUILD_PATH) && jar -c -v -m META-INF/MANIFEST.MF -f client.jar $$(find . -name '*.class') $$(find .)
 	sed -i 's/client.ClientMain/server.ServerMain/g' $(BUILD_PATH)/META-INF/MANIFEST.MF
 	cd $(BUILD_PATH) && jar -c -v -m META-INF/MANIFEST.MF -f server.jar $$(find . -name '*.class')
 	mv $(BUILD_PATH)/client.jar $(BUILD_PATH)/server.jar ./
