@@ -113,6 +113,7 @@ public class SessionState {
      */
     public void startGame() {
         this.state.play();
+        this.commandSet.remove(Command.SHARE);
     }
 
     /**
@@ -120,5 +121,6 @@ public class SessionState {
      */
     public void stopGame() {
         this.state.stopPlaying();
+        this.commandSet.add(Command.SHARE);
     }
 }
