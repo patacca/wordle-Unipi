@@ -7,12 +7,15 @@ public class UserStats {
     public int currStreak;
     public int bestStreak;
     public double score;
+    public int[] guessDist;
 
-    public UserStats(int totGames, int wonGames, int currStreak, int bestStreak, double score) {
+    public UserStats(int totGames, int wonGames, int currStreak, int bestStreak, double score,
+            int[] guessDist) {
         this.totGames = totGames;
         this.wonGames = wonGames;
         this.currStreak = currStreak;
         this.bestStreak = bestStreak;
         this.score = score;
+        this.guessDist = guessDist;
     }
 }

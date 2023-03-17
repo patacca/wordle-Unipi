@@ -323,12 +323,17 @@ public class ClientSession {
         this.logger.info(String.format("User %s action STATS", this.user.getUsername()));
 
         // Prepare the message
-        ByteBuffer msg = ByteBuffer.allocate(Integer.BYTES * 4 + Double.BYTES);
+        ByteBuffer msg = ByteBuffer.allocate(Constants.SOCKET_MSG_MAX_SIZE);
         msg.putInt(this.user.getTotGames());
         msg.putInt(this.user.getWonGames());
         msg.putInt(this.user.getCurrStreak());
         msg.putInt(this.user.getBestStreak());
         msg.putDouble(this.user.score());
+        // Guess distribution
+        int[] guessDist = this.user.getGuessDist();
+        msg.put((byte) guessDist.length);
+        for (int k = 0; k < guessDist.length; ++k)
+            msg.putInt(guessDist[k]);
         // TODO put leaderboard position
         msg.flip();
 

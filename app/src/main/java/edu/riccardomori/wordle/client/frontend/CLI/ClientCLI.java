@@ -1,4 +1,4 @@
-package edu.riccardomori.wordle.client.frontend;
+package edu.riccardomori.wordle.client.frontend.CLI;
 
 import java.io.PrintStream;
 import java.rmi.RemoteException;
@@ -14,6 +14,9 @@ import edu.riccardomori.wordle.client.backend.GuessDescriptor;
 import edu.riccardomori.wordle.client.backend.NotificationListener;
 import edu.riccardomori.wordle.client.backend.UserStats;
 import edu.riccardomori.wordle.client.backend.exceptions.*;
+import edu.riccardomori.wordle.client.frontend.ClientFrontend;
+import edu.riccardomori.wordle.client.frontend.Command;
+import edu.riccardomori.wordle.client.frontend.SessionState;
 import edu.riccardomori.wordle.rmi.clientRMI;
 import edu.riccardomori.wordle.utils.Pair;
 
@@ -428,6 +431,13 @@ public class ClientCLI implements ClientFrontend, clientRMI {
             this.out.format("  current winning streak: %d\n", stats.currStreak);
             this.out.format("  best winning streak: %d\n", stats.bestStreak);
             this.out.format("  user score: %.2f\n", stats.score);
+            this.out.println("  guess distribution:");
+            for (int k = 0; k < stats.guessDist.length; ++k) {
+                if (stats.guessDist[k] == 0)
+                    this.out.format("   %d: -\n", k + 1);
+                else
+                    this.out.format("   %d: %d\n", k + 1, stats.guessDist[k]);
+            }
         } catch (GenericError | IOError e) {
             this.out.println("**Cannot retrieve stats from server**");
         }

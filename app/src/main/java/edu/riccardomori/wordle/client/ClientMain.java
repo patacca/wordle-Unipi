@@ -5,8 +5,9 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
-import edu.riccardomori.wordle.client.frontend.ClientCLI;
 import edu.riccardomori.wordle.client.frontend.ClientFrontend;
+import edu.riccardomori.wordle.client.frontend.CLI.ClientCLI;
+import edu.riccardomori.wordle.client.frontend.GUI.ClientGUI;
 
 public class ClientMain {
     private static final String configFile = "ClientMain.properties";

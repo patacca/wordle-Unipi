@@ -389,8 +389,12 @@ public class ClientBackend {
                 int currStrak = msg.message.getInt();
                 int bestStreak = msg.message.getInt();
                 double score = msg.message.getDouble();
+                int size = msg.message.get();
+                int[] guessDist = new int[size];
+                for (int k = 0; k < size; ++k)
+                    guessDist[k] = msg.message.getInt();
 
-                return new UserStats(totGames, wonGames, currStrak, bestStreak, score);
+                return new UserStats(totGames, wonGames, currStrak, bestStreak, score, guessDist);
             } else
                 throw new GenericError();
         } catch (IOException e) {

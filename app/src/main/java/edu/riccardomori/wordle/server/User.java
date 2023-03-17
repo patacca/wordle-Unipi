@@ -78,6 +78,13 @@ public class User {
         return this.bestStreak;
     }
 
+    public int[] getGuessDist() {
+        int[] ret = new int[WordleServer.WORD_TRIES];
+        for (int k = 0; k < WordleServer.WORD_TRIES; ++k)
+            ret[k] = this.guessDist[k + 1];
+        return ret;
+    }
+
     public GameDescriptor getLastGame() {
         return this.lastGame.copy();
     }
