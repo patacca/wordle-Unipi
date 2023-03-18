@@ -61,7 +61,6 @@ import edu.riccardomori.wordle.utils.Pair;
 //   - Managing the subscribers
 //   - Handling the notification over multicast
 // @formatter:on
-// TODO every once in a while flush everything to the db
 public final class WordleServer implements serverRMI {
     private static WordleServer instance; // Singleton instance
 
