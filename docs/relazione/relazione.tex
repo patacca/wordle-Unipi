@@ -9,9 +9,9 @@
 \renewcommand{\figurename}{Figura}
 
 \newsavebox{\asciiart}
-\newcommand{\showasciiart}{
+\newcommand{\showasciiart}[1]{
 	\raisebox{1\height}{
-		\resizebox{80.5ex}{!}{\usebox{\asciiart}}
+		\resizebox{#1}{!}{\usebox{\asciiart}}
 	}
 }
 
@@ -51,6 +51,8 @@
 	
 	\appendix
 	\input{formato_messaggi.tex}
+	\newpage
+	\input{formato_messaggi_udp.tex}
 	
 \end{document}
 Symbols

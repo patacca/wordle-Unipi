@@ -1,0 +1,27 @@
+\section{Formato dei messaggi UDP}
+\label{appendix:udp_format}
+
+\begin{lrbox}{\asciiart}
+	\begin{varwidth}{\maxdimen}
+		\noindent\lstinputlisting[basicstyle=\ttfamily]{format/udp_format.txt}
+	\end{varwidth}
+\end{lrbox}%
+
+\begin{center}
+	\begin{figure}[h]
+		\makebox[\textwidth]{\showasciiart{80ex}}
+	\end{figure}
+\end{center}
+
+\paragraph{Descrizione:}
+\begin{itemize}
+	\item \textbf{U\_SIZE} e' la dimensione del campo \textbf{USERNAME}
+	\item \textbf{USERNAME} e' lo username dell'utente che ha giocato la partita in questione
+	\item \textbf{GAME\_ID} e' l'id della partita giocata
+	\item \textbf{N\_TRIES} e' il numero di tentativi impiegati dal giocatore (-1 nel caso in cui abbia perso)
+	\item \textbf{MAX\_TRIES} e' il numero di tentativi di cui disponeva il giocatore
+	\item \textbf{WORD\_LEN} e' la lunghezza in caratteri della secret word
+	\item \textbf{HINTS\_LEN} e' la quantita' di tentativi effettivamente sottomessi dall'utente
+	\item \textbf{C\_SIZE} e \textbf{P\_SIZE} sono rispettivamente la quantita' di lettere corrette al posto giusto e lettere corrette ma al posto sbagliato.
+	\item \textbf{CORRECT\_HINT} e \textbf{PARTIAL\_HINT} sono una serie di bytes che indicano la posizione (0-based) del carattere rispettivamente corretto, o presente ma in posizione sbagliata.
+\end{itemize}

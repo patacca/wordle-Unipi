@@ -1,2 +1,264 @@
 \section{Formato dei messaggi}
 \label{appendix:format}
+
+\paragraph{NOTA:} Tutti i messaggi sono codificati in \textbf{UTF-8} e i valori sono codificati in \emph{BIG\_ENDIAN}
+\paragraph{Legenda:}
+\begin{itemize}
+	\item Il simbolo \textbf{B} indica l'unita' \texttt{byte}
+	\item Qualora il nome del campo sia racchiuso tra \textbf{[} e \textbf{]} significa che la sua lunghezza e' variabile
+	\item I campi marcati dal simbolo \textbf{*} sono opzionali
+	\item Tutti e soli i valori di \textbf{MESSAGE\_STATUS} sono descritti nella classe \texttt{protocol/MessageStatus.java}
+\end{itemize}
+
+\paragraph{Importante:} Tutti i messaggi di risposta del server sono nel seguente formato:
+
+\begin{lrbox}{\asciiart}
+	\begin{varwidth}{\maxdimen}
+		\noindent\lstinputlisting[basicstyle=\ttfamily]{format/base_server.txt}
+	\end{varwidth}
+\end{lrbox}%
+
+\begin{center}
+	\begin{figure}[h]
+		\makebox[\textwidth]{\showasciiart{80ex}}
+		\centering \textbf{MESSAGE\_STATUS} rappresenta l'esito dell'operazione e \textbf{SERVER\_DATA} e' un campo di lunghezza variabile presente solo in alcuni casi.
+	\end{figure}
+\end{center}
+
+Di seguito verranno descritti i messaggi del client e \underline{solo} i messaggi \textbf{SERVER\_DATA} nel caso siano presenti
+
+\newpage
+
+\subsection{Login}
+
+\paragraph{Messaggio inviato dal client}
+
+\begin{lrbox}{\asciiart}
+	\begin{varwidth}{\maxdimen}
+		\noindent\lstinputlisting[basicstyle=\ttfamily]{format/login_client.txt}
+	\end{varwidth}
+\end{lrbox}%
+
+\begin{center}
+	\begin{figure}[h]
+		\makebox[\textwidth]{\showasciiart{80.5ex}}
+		\centering \textbf{U\_SIZE} e \textbf{P\_SIZE} rappresentano rispettivamente la lunghezza in bytes del campo \textbf{USERNAME} e \textbf{PASSWORD}
+	\end{figure}
+\end{center}
+
+\paragraph{Messaggio inviato dal server}
+
+---
+
+\subsection{Start Game}
+
+\paragraph{Messaggio inviato dal client}
+
+\begin{lrbox}{\asciiart}
+	\begin{varwidth}{\maxdimen}
+		\noindent\lstinputlisting[basicstyle=\ttfamily]{format/startgame_client.txt}
+	\end{varwidth}
+\end{lrbox}%
+
+\begin{center}
+	\begin{figure}[h]
+		\makebox[\textwidth]{\showasciiart{40ex}}
+	\end{figure}
+\end{center}
+
+\paragraph{Messaggio inviato dal server}
+
+\begin{lrbox}{\asciiart}
+	\begin{varwidth}{\maxdimen}
+		\noindent\lstinputlisting[basicstyle=\ttfamily]{format/startgame_server.txt}
+	\end{varwidth}
+\end{lrbox}%
+
+\begin{center}
+	\begin{figure}[h]
+		\makebox[\textwidth]{\showasciiart{50ex}}
+		\centering \textbf{SECRET\_LEN} indica il numero di caratteri di cui e' composta la \emph{secret word}. \textbf{N\_TRIES} e' il numero di tentativi concessi.
+	\end{figure}
+\end{center}
+
+\newpage
+
+\subsection{Logout}
+
+\paragraph{Messaggio inviato dal client}
+
+\begin{lrbox}{\asciiart}
+	\begin{varwidth}{\maxdimen}
+		\noindent\lstinputlisting[basicstyle=\ttfamily]{format/logout_client.txt}
+	\end{varwidth}
+\end{lrbox}%
+
+\begin{center}
+	\begin{figure}[h]
+		\makebox[\textwidth]{\showasciiart{40ex}}
+	\end{figure}
+\end{center}
+
+\paragraph{Messaggio inviato dal server}
+
+---
+
+\subsection{Send Word}
+
+\paragraph{Messaggio inviato dal client}
+
+\begin{lrbox}{\asciiart}
+	\begin{varwidth}{\maxdimen}
+		\noindent\lstinputlisting[basicstyle=\ttfamily]{format/sendword_client.txt}
+	\end{varwidth}
+\end{lrbox}%
+
+\begin{center}
+	\begin{figure}[h]
+		\makebox[\textwidth]{\showasciiart{50ex}}
+	\end{figure}
+\end{center}
+
+\paragraph{Messaggio inviato dal server}
+
+\subparagraph{Se l'utente ha gia' terminato la partita per la secret word corrente}
+
+\begin{lrbox}{\asciiart}
+	\begin{varwidth}{\maxdimen}
+		\noindent\lstinputlisting[basicstyle=\ttfamily]{format/sendword_server1.txt}
+	\end{varwidth}
+\end{lrbox}%
+
+\begin{center}
+	\begin{figure}[h]
+		\makebox[\textwidth]{\showasciiart{45ex}}
+		\centering \textbf{NEXT\_GAME\_TIME} e' l'orario espresso in \emph{unix time} in millisecondi in cui verra' generata la nuova \emph{secret word}.
+	\end{figure}
+\end{center}
+
+
+\subparagraph{Se la parola inviata non e' valida}
+
+\begin{lrbox}{\asciiart}
+	\begin{varwidth}{\maxdimen}
+		\noindent\lstinputlisting[basicstyle=\ttfamily]{format/sendword_server2.txt}
+	\end{varwidth}
+\end{lrbox}%
+
+\begin{center}
+	\begin{figure}[h]
+		\makebox[\textwidth]{\showasciiart{45ex}}
+		\centering Numero di tentativi rimasti.
+	\end{figure}
+\end{center}
+
+\newpage
+
+\subparagraph{Altrimenti}
+
+\begin{lrbox}{\asciiart}
+	\begin{varwidth}{\maxdimen}
+		\noindent\lstinputlisting[basicstyle=\ttfamily]{format/sendword_server3.txt}
+	\end{varwidth}
+\end{lrbox}%
+
+\begin{center}
+	\begin{figure}[h]
+		\makebox[\textwidth]{\showasciiart{85ex}}
+		\centering \textbf{N\_TRIES} e' il numero di tentativi rimasti. \textbf{C\_SIZE} e \textbf{P\_SIZE} sono la dimensione di \textbf{CORRECT\_HINT} e \textbf{PARTIAL\_HINT}.
+	\end{figure}
+\end{center}
+
+Il formato di \textbf{CORRECT\_HINT} e \textbf{PARTIAL\_HINT} e' lo stesso ed e' una serie di bytes che indicano la posizione (0-based) del carattere rispettivamente corretto, o presente ma in posizione sbagliata
+
+
+\subsection{Get Stats}
+
+\paragraph{Messaggio inviato dal client}
+
+\begin{lrbox}{\asciiart}
+	\begin{varwidth}{\maxdimen}
+		\noindent\lstinputlisting[basicstyle=\ttfamily]{format/stats_client.txt}
+	\end{varwidth}
+\end{lrbox}%
+
+\begin{center}
+	\begin{figure}[h]
+		\makebox[\textwidth]{\showasciiart{40ex}}
+	\end{figure}
+\end{center}
+
+\paragraph{Messaggio inviato dal server}
+
+\begin{lrbox}{\asciiart}
+	\begin{varwidth}{\maxdimen}
+		\noindent\lstinputlisting[basicstyle=\ttfamily]{format/stats_server.txt}
+	\end{varwidth}
+\end{lrbox}%
+
+\begin{center}
+	\begin{figure}[h]
+		\makebox[\textwidth]{\showasciiart{85ex}}
+		\centering \textbf{GAMES} e' il numero totale di partite effettuate. \textbf{WON\_GAMES} e' il numero di partite vinte. \textbf{CURR\_STREAK} e' lo streak di vittorie attuale. \textbf{BEST\_STREAK} e' lo streak di vittorie piu' lungo. \textbf{SCORE} e' punteggio. \textbf{DIST\_SIZE} (codificato in 1 byte) e' la lunghezza della guess distribution.
+	\end{figure}
+\end{center}
+
+La guess distribution e' codificata come una sequenza di interi (codificati in 4 bytes ognuno).
+
+\subsection{Get Leaderboard}
+
+\paragraph{Messaggio inviato dal client}
+
+\begin{lrbox}{\asciiart}
+	\begin{varwidth}{\maxdimen}
+		\noindent\lstinputlisting[basicstyle=\ttfamily]{format/leaderboard_client.txt}
+	\end{varwidth}
+\end{lrbox}%
+
+\begin{center}
+	\begin{figure}[h]
+		\makebox[\textwidth]{\showasciiart{40ex}}
+	\end{figure}
+\end{center}
+
+\paragraph{Messaggio inviato dal server}
+
+\begin{lrbox}{\asciiart}
+	\begin{varwidth}{\maxdimen}
+		\noindent\lstinputlisting[basicstyle=\ttfamily]{format/leaderboard_server.txt}
+	\end{varwidth}
+\end{lrbox}%
+
+\begin{center}
+	\begin{figure}[h]
+		\makebox[\textwidth]{\showasciiart{85ex}}
+		\centering \textbf{NAME\_SIZE} e' la dimensione in bytes dello username. Le posizioni degli utenti sono gia' ordinate in base alla posizione in classifica.
+	\end{figure}
+\end{center}
+
+\paragraph{Nota:} Esistono due operazioni distinte che il client puo' effettuare: richiedere la classifica intera o solo le prime posizioni (il numero esatto dipende dall'implementazione del server).
+Il formato dei messaggi in entrambi i casi e' lo stesso, cambia solamente il codice del client (\textbf{5} per le prime posizioni, \textbf{6} per la classifica completa).
+
+\subsection{Share game}
+
+\paragraph{Messaggio inviato dal client}
+
+\begin{lrbox}{\asciiart}
+	\begin{varwidth}{\maxdimen}
+		\noindent\lstinputlisting[basicstyle=\ttfamily]{format/share_client.txt}
+	\end{varwidth}
+\end{lrbox}%
+
+\begin{center}
+	\begin{figure}[h]
+		\makebox[\textwidth]{\showasciiart{40ex}}
+	\end{figure}
+\end{center}
+
+\paragraph{Messaggio inviato dal server}
+
+---
+
+\paragraph{Nota:} Esistono due operazioni distinte che il client puo' effettuare: richiedere la classifica intera o solo le prime posizioni (il numero esatto dipende dall'implementazione del server).
+Il formato dei messaggi in entrambi i casi e' lo stesso, cambia solamente il codice del client (\textbf{5} per le prime posizioni, \textbf{6} per la classifica completa).
+
