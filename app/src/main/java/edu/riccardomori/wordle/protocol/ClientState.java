@@ -1,7 +1,9 @@
 package edu.riccardomori.wordle.protocol;
 
-// Shared way of representing a client state.
-// Internally, to store the state, it uses a single integer and some bitmask fields
+/**
+ * Shared way of representing a client state.
+ * Internally, to store the state, it uses a single integer and some bitmask fields
+ */
 public class ClientState {
     // Bitmask constants
     public static final int LOGGED = 1;

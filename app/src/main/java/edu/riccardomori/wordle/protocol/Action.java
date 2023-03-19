@@ -1,6 +1,8 @@
 package edu.riccardomori.wordle.protocol;
 
-// All the commands that the client is allowed to perform on the server
+/**
+ * All the commands that the client is allowed to perform on the server
+ */
 public enum Action {
     // @formatter:off
     LOGIN((byte) 0),

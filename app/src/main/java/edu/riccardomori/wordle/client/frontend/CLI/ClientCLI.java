@@ -20,7 +20,9 @@ import edu.riccardomori.wordle.client.frontend.SessionState;
 import edu.riccardomori.wordle.rmi.clientRMI;
 import edu.riccardomori.wordle.utils.Pair;
 
-// Command line frontend
+/**
+ * Command line frontend
+ */
 public class ClientCLI implements ClientFrontend, clientRMI {
     private final PrintStream out = System.out;
     private final Scanner in = new Scanner(System.in);

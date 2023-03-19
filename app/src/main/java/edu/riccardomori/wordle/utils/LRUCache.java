@@ -3,7 +3,9 @@ package edu.riccardomori.wordle.utils;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-// Simple LRU cache implementation based on LinkedHashMap
+/**
+ * Simple LRU cache implementation based on LinkedHashMap
+ */
 public class LRUCache<K, V> extends LinkedHashMap<K, V> {
     private int maxSize;
 

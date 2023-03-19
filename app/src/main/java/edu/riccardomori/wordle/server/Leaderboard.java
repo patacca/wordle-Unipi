@@ -8,9 +8,11 @@ import java.util.Map;
 import java.util.TreeMap;
 import edu.riccardomori.wordle.utils.Pair;
 
-// Leadebord implementation. All the operations are O(n)
-// Every access if mutually exclusive.
 // TODO consider using order statistic tree to make update O(log(n))
+/**
+ * Leadebord implementation. All the operations are O(n)
+ * Every access if mutually exclusive.
+ */
 public class Leaderboard {
     // The BST ordered by score. The boolean value can safely be ignored
     // The key (score, username) are lexicographically ordered
@@ -35,7 +37,7 @@ public class Leaderboard {
      * Returns the first {@code ranks} positions of the leaderboard
      * 
      * @param ranks
-     * @return List of pairs <Username, Score> in the order they appear in the leaderboard
+     * @return List of pairs {@code <Username, Score>} in the order they appear in the leaderboard
      */
     public synchronized List<Pair<String, Double>> get(int ranks) {
         List<Pair<String, Double>> ret = new ArrayList<>();
@@ -51,8 +53,7 @@ public class Leaderboard {
     /**
      * Returns the full leaderboard
      * 
-     * @param ranks
-     * @return List of pairs <Username, Score> in the order they appear in the leaderboard
+     * @return List of pairs {@code <Username, Score>} in the order they appear in the leaderboard
      */
     public synchronized List<Pair<String, Double>> get() {
         List<Pair<String, Double>> ret = new ArrayList<>();

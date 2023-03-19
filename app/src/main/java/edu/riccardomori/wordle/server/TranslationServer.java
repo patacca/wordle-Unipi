@@ -9,8 +9,10 @@ import javax.net.ssl.HttpsURLConnection;
 import com.google.gson.stream.JsonReader;
 import edu.riccardomori.wordle.utils.LRUCache;
 
-// Simple tanslation server that internally uses a LRU cache. This is a singleton class.
-// It is thread-safe.
+/**
+ * Simple tanslation server that internally uses a LRU cache. This is a singleton class.
+ * It is thread-safe.
+ */
 public class TranslationServer {
     private static TranslationServer instance; // Singleton instance
 

@@ -1,15 +1,17 @@
 package edu.riccardomori.wordle.server;
 
 // @formatter:off
-// Represents a single user account, with all the user stats.
-// The class is considered to be non thread-safe so only one owner should operate on it,
-// however it is safe to serialize by previously grabbing a lock on the object.
-// Ex:
-//   User user = ....
-//   // Here it is unsafe to serialize user
-//   synchronized (user) {
-//     // Here it is safe to serialize user
-//   }
+/**
+ * Represents a single user account, with all the user stats.
+ * The class is considered to be non thread-safe so only one owner should operate on it,
+ * however it is safe to serialize by previously grabbing a lock on the object.
+ * Ex:
+ *    User user = ....
+ *    // Here it is unsafe to serialize user
+ *    synchronized (user) {
+ *      // Here it is safe to serialize user
+ *    }
+ */
 // @formatter:on
 public class User {
     // Account details

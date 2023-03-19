@@ -6,8 +6,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-// Descriptor of a user session.
-// This class is not thread safe.
+/**
+ * Descriptor of a user session.
+ * This class is not thread safe.
+ */
 public class UserSession {
     public boolean isActive = true; // Tells if the session is active or if it has been closed
     public String secretWord; // Last played secret word

@@ -3,7 +3,9 @@ package edu.riccardomori.wordle.rmi;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 
-// This is the interface that defines which remote methods are available
+/**
+ * This is the interface that defines which remote methods are available
+ */
 public interface serverRMI extends Remote {
     /**
      * Register a new user with the pair ({@code username}, {@code password}).

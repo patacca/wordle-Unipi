@@ -1,6 +1,8 @@
 package edu.riccardomori.wordle.client.backend;
 
-// Contains the information returned by the server as the result of a guess
+/**
+ * Contains the information returned by the server as the result of a guess
+ */
 public class GuessDescriptor {
     public int triesLeft;
     public int[] correct;

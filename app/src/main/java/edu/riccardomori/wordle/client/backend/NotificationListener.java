@@ -15,7 +15,9 @@ import edu.riccardomori.wordle.client.backend.exceptions.IOError;
 import edu.riccardomori.wordle.client.backend.exceptions.IfaceExcpetion;
 import edu.riccardomori.wordle.protocol.Constants;
 
-// Listen for notifications shared by other users in the multicast group
+/**
+ * Listen for notifications shared by other users in the multicast group
+ */
 public class NotificationListener {
     private String address; // multicast group address
     private int port; // multicast port

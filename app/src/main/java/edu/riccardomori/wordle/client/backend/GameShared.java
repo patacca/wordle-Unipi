@@ -1,6 +1,8 @@
 package edu.riccardomori.wordle.client.backend;
 
-// Represents a game shared by other users
+/**
+ * Represents a game shared by other users
+ */
 public class GameShared {
     public int tries; // Number of tries needed. -1 if game was lost
     public int maxTries; // Number of tries allowed

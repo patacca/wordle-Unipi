@@ -34,9 +34,11 @@ import edu.riccardomori.wordle.rmi.clientRMI;
 import edu.riccardomori.wordle.rmi.serverRMI;
 import edu.riccardomori.wordle.utils.Pair;
 
-// Client backend that handles all the communication with the server through the TCP socket.
-// It also manages the subscription to the remote callback for the notifications about the
-// leadeboard
+/**
+ * Client backend that handles all the communication with the server through the TCP socket.
+ * It also manages the subscription to the remote callback for the notifications about the
+ * leadeboard
+ */
 public class ClientBackend {
     private final int socketTimeout = 10000; // Timeout for reading on the socket
     private String serverHost; // The server host

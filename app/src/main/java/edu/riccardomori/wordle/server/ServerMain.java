@@ -10,7 +10,9 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import edu.riccardomori.wordle.server.logging.ConsoleHandler;
 
-// This is the entry point for the server
+/**
+ * This is the entry point for the server
+ */
 public class ServerMain {
     private static final String configFile = "ServerMain.properties";
 

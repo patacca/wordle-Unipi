@@ -52,14 +52,16 @@ import edu.riccardomori.wordle.rmi.exceptions.UsernameIllegalException;
 import edu.riccardomori.wordle.utils.Pair;
 
 // @formatter:off
-// This is the main server class. It is a singleton class. It is thread safe.
-// It is responsible for:
-//   - Handling all the incoming connections with non-blocking channels
-//   - Handling the generation of the secret word
-//   - Authenticating the users
-//   - Implementing the remote methods
-//   - Managing the subscribers
-//   - Handling the notification over multicast
+/**
+ * This is the main server class. It is a singleton class. It is thread safe.
+ * It is responsible for:
+ *   - Handling all the incoming connections with non-blocking channels
+ *   - Handling the generation of the secret word
+ *   - Authenticating the users
+ *   - Implementing the remote methods
+ *   - Managing the subscribers
+ *   - Handling the notification over multicast
+ */
 // @formatter:on
 public final class WordleServer implements serverRMI {
     private static WordleServer instance; // Singleton instance

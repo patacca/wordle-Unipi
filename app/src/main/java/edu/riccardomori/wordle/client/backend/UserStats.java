@@ -1,6 +1,8 @@
 package edu.riccardomori.wordle.client.backend;
 
-// Describes the stats of a user
+/**
+ * Describes the stats of a user
+ */
 public class UserStats {
     public int totGames;
     public int wonGames;

@@ -4,8 +4,10 @@ import java.util.SortedSet;
 import java.util.TreeSet;
 import edu.riccardomori.wordle.protocol.ClientState;
 
-// Descriptor of the client session.
-// It also contains all the legal commands at any moment.
+/**
+ * Descriptor of the client session.
+ * It also contains all the legal commands at any moment.
+ */
 public class SessionState {
     private ClientState state = new ClientState(); // The state of the client in the communication
     private String username; // Only set if logged in
