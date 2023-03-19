@@ -1,0 +1,29 @@
+\section{Protocollo di comunicazione}
+Il protocollo di comunicazione client-server e' stato implementato avendo come obiettivi:
+\begin{itemize}
+	\item La dimensione dei messaggi inviati
+	\item La facilita' del parsing dei messaggi
+	\item L'indipendenza del protocollo da qualsiasi implementazione, linguaggio di programmazione, sistema operativo o architettura utilizzata
+\end{itemize}
+
+\begin{lrbox}{\asciiart}
+	\begin{varwidth}{\maxdimen}
+		\noindent\lstinputlisting[basicstyle=\ttfamily]{proto_fmt1.txt}
+	\end{varwidth}
+\end{lrbox}%
+
+E' stato dunque scelto un protocollo custom binario in cui i messaggi vengono codificati in \textbf{UTF-8} e incapsulati all'interno di un pacchetto (come si puo' vedere in Figura \ref{fig:proto_fmt1}) nel seguente formato:
+\begin{enumerate}
+	\item Dimensione in byte del messaggio codificato in 4 bytes $BIG\_ENDIAN$
+	\item Il messaggio vero e proprio (codificato in \emph{UTF-8})
+\end{enumerate}
+
+\begin{center}
+	\begin{figure}[t!]
+		\makebox[\textwidth]{\showasciiart{}}
+		\caption{Rappresentazione dell'incapsulamento di un messaggio.}
+		\label{fig:proto_fmt1}
+	\end{figure}
+\end{center}
+
+Per una descrizione approfondita del formato dei messaggi consultare l'appendice \ref{appendix:format}

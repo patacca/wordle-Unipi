@@ -1,0 +1,43 @@
+\section{Descrizione del progetto}
+Il progetto consiste nell'implementazione (in Java 8) di una versione semplificata del famoso gioco \textbf{Wordle}. In particolare questa variante del gioco supporta numero di tentativi e lunghezza delle parole variabili\footnote{I valori sono impostati staticamente (\emph{hardcoded})}. \newline
+Il progetto si compone di due parti indipendenti fra loro: il \textbf{server} e il \textbf{client}.
+
+La struttura e' la seguente:
+\bigskip
+
+\dirtree{%
+	.1 /.
+	.2 client/ \quad \begin{minipage}[t]{7cm}
+		Implementazione del client
+	\end{minipage}.
+	.3 backend/ \hfill \begin{minipage}[t]{7cm}
+		Offre un'implementazione di base delle funzionalita'
+		supportate dal client
+			\end{minipage}.
+	.4 exceptions/.
+	.3 frontend/ \hfill \begin{minipage}[t]{7cm}
+		Implementazione frontend
+	\end{minipage}.
+	.4 CLI/ \quad \begin{minipage}[t]{7cm}
+		Command Line Interface
+	\end{minipage}.
+	.4 GUI/ \quad \begin{minipage}[t]{7cm}
+		Graphical User Interface (Opzionale)
+	\end{minipage}.
+	.2 protocol/ \hfill \begin{minipage}[t]{7cm}
+		Costanti e strutture dati condivise relative al
+		protocollo di comunicazione client-server over TCP
+	\end{minipage}.
+	.2 rmi/ \quad \begin{minipage}[t]{7cm}
+		Interfacce e strutture dati condivise relative
+		a RMI
+	\end{minipage}.
+	.3 exceptions/.
+	.2 server/ \hfill \begin{minipage}[t]{7cm}
+		Implementazione del server
+	\end{minipage}.
+	.3 logging/.
+	.2 utils/ \quad \begin{minipage}[t]{7cm}
+		Utilities
+	\end{minipage}.
+}

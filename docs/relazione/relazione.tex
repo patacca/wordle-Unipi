@@ -1,0 +1,56 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage[hidelinks]{hyperref}
+\usepackage{graphicx, booktabs, setspace, dirtree, varwidth, listings, perpage, hyperref}
+
+\MakePerPage{footnote}
+
+\renewcommand{\contentsname}{Indice}
+\renewcommand{\figurename}{Figura}
+
+\newsavebox{\asciiart}
+\newcommand{\showasciiart}{
+	\raisebox{1\height}{
+		\resizebox{80.5ex}{!}{\usebox{\asciiart}}
+	}
+}
+
+\title{Relazione del progetto \texttt{Wordle}}
+\author{Riccardo Mori}
+\date{Marzo 2023}
+\makeatletter
+
+\begin{document}
+	
+	\begin{titlepage}
+		\centering
+		\includegraphics[height=12pc]{img/marchio_unipi.pdf} \\
+		\null
+		\textsc{\huge Dipartimento di Informatica}
+		\vfill
+		{\huge{\@title}}
+		\vfill
+		\emph{Autore:} \@author \\
+		\emph{Matricola:} 505163 \\
+		\@date
+	\end{titlepage}
+	
+	\setstretch{1.15}
+	\tableofcontents
+	\setstretch{1.0}
+	\pagebreak
+	
+	\input{descrizione.tex}
+	\input{protocollo.tex}
+	\input{server.tex}
+	\input{client.tex}
+	\input{manuale.tex}
+	\input{note.tex}
+	
+	\newpage
+	
+	\appendix
+	\input{formato_messaggi.tex}
+	
+\end{document}
+Symbols

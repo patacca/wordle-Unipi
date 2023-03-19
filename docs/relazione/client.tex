@@ -1,0 +1,73 @@
+\section{Client}
+
+Il client e' diviso in due parti: \textbf{backend} e \textbf{frontend}. Il primo implementa tutte le varie funzioni che prevedono un'interazione con il server in modo da offrire una sorta di \emph{API} comune a qualsiasi frontend, il secondo invece e' l'interfaccia utente vera e propria.
+
+Questa scelta permette di riutilizzare il codice e separare ulteriormente l'interfaccia dalle funzionalita'.
+
+\subsection{Backend}
+
+La struttura del backend e' la seguente:
+\bigskip
+
+\dirtree{%
+	.1 client/backend/.
+	.2 ClientBackend \quad \begin{minipage}[t]{7cm}
+		Implementazione delle funzionalita' del client
+	\end{minipage}.
+	.2 NotificationListener \quad \begin{minipage}[t]{7cm}
+		Riceve i messaggi da un gruppo di multicast
+	\end{minipage}.
+	.2 exceptions/ \quad \begin{minipage}[t]{7cm}
+		Eccezioni custom
+	\end{minipage}.
+}
+\bigskip
+
+La classe principale e' ovviamente \textbf{ClientBackend} che implementa la quasi totalita' delle funzionalita' richieste dal client (login, inizio di una partita, tentativo di indovinare la parola segreta, ...). E' importante notare che le funzionalita' offerte \underline{non controllano} la consistenza dello stato del sistema ma sono una vera e propria \emph{API}. Sara' compito del frontend effettuare le chiamate giuste al momento giusto.
+
+I metodi offerti da \textbf{ClientBackend} si occupano di creare il messaggio da inviare al server (tramite socket TCP) e in caso di successo terminano ritornando gli eventuali dati ricevuti dal server (corretamente parsati), altrimenti sollevano un'eccezione che estende \textbf{BackendException} indicativa del problema avvenuto. Nel caso in cui il messaggio di risposta dal server contenga dei dati aggiuntivi, nonostante l'operazione richiesta non sia andata a buon fine, tali dati, opportunamente parsati, verranno incapsulati all'interno dell'eccezione sollevata e potranno essere recuperati tramite il metodo \textbf{BackendException::getResult}. Se ne puo' vedere un esempio in \textbf{AlreadyPlayedException}.
+
+Questo sistema permette una maggiore flessibilita' nella comunicazione tra \textbf{frontend} e \textbf{backend}, infatti l'utilizzatore del \textbf{backend} sapra' sempre qual e' il tipo di dato ritornato e quali le eccezioni generate. Alternativamente, ritornare sempre un tipo di dato che contemporaneamente codifichi (tipicamente tramite un intero) sia il successo che tutti i possibili errori e al tempo stesso anche tutti i possibili dati aggiuntivi comunicati dal server, avrebbe reso il codice meno leggibile, piu' prono a errori e meno auto-esplicativo.
+
+Un'ultima considerazione va fatta per \textbf{NotificationListener} che lancia un thread nel quale resta in ascolto di eventuali messaggi su un gruppo multicast. Gli unici problemi causati dalla concorrenza in questo caso sono dovuti agli accessi alle risorse interne alla classe, quindi sono molto semplici da gestire.
+
+\subsection{Frontend}
+
+Il frontend e' offerto da due diverse implementazioni: una \textbf{CLI} (\emph{Command Line Interface}) e una \textbf{GUI} (\emph{Graphical User Interface}).
+
+La \textbf{GUI}, essendo facoltativa, non verra' discussa nel dettaglio. Viene offerta \emph{as is} semplicemente per completezza.
+
+La struttura del frontend e' la seguente:
+\bigskip
+
+\dirtree{%
+	.1 client/frontend/.
+	.2 CLI/.
+	.3 ClientCLI.
+	.2 ClientFrontend \quad \begin{minipage}[t]{7cm}
+		Interfaccia che ogni frontend deve implementare
+	\end{minipage}.
+	.2 Command.
+	.2 SessionState \quad \begin{minipage}[t]{7cm}
+		Mantiene lo stato del client
+	\end{minipage}.
+	.2 GUI/.
+}
+\bigskip
+
+Essendo che il client deve implementare l'interfaccia \textbf{clientRMI} in cui vengono specificati i metodi remoti che possono essere invocati dal server (che rappresenta una linea diretta di comunicazione col server), e' chiaro che il frontend dovra' implementare tali metodi, senza poter demandare al backend questa responsabilita'.
+
+Fortunatamente c'e' solo un metodo (\textbf{updateLeaderboard}) invocabile da remoto ed e' di facile implementazione. Cio' non causa problemi di concorrenza.
+
+Il resto del client e' composto da un singolo thread (il principale). Questo, unito al fatto che si appoggia al backend per l'implementazione delle funzionalita' richieste, rende la classe \textbf{ClientCLI} semplice e lineare.
+
+\subsection{Configurazione}
+
+Nel file di configurazione \texttt{ClientMain.properties} si possono configurare i seguenti valori:
+\begin{itemize}
+	\item \texttt{multicast\_address}: l'indirizzo del gruppo di multicast
+	\item \texttt{multicast\_port}: la porta da utilizzare quando si mandano messaggi nel gruppo di multicast
+	\item \texttt{server\_host}: l'host del server
+	\item \texttt{server\_port}: la porta da usare per connettersi al server
+	\item \texttt{rmi\_port}: la porta da usare per i servizi RMI
+\end{itemize}

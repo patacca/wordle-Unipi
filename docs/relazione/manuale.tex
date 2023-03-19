@@ -1,0 +1,127 @@
+\section{Manuale d'uso}
+
+Per la compilazione e l'esecuzione e' richiesto \textbf{Java 8} o superiore.
+
+Esistono diversi modi per compilare il progetto:
+\begin{itemize}
+	\item \hyperlink{makefile}{\textbf{Makefile}} (Linux, MacOS, Unix-like)
+	\item \hyperlink{gradle}{\textbf{Gradle}} (All platforms)
+	\item \hyperlink{manual}{\textbf{Manualmente}} (All platforms)
+\end{itemize}
+
+\hypertarget{makefile}{}
+\subsection{Makefile}
+
+\paragraph{Per compilare}
+\begin{verbatim}
+	$ make all
+\end{verbatim}
+
+\paragraph{Per creare i files \texttt{jar}}
+\begin{verbatim}
+	$ make jar
+\end{verbatim}
+
+Il risultato della compilazione sara' nella cartella \texttt{build/}
+
+\bigskip
+\bigskip
+\hypertarget{gradle}{}
+\subsection{Gradle}
+
+\subsubsection{Unix}
+Di seguito verra' descritta la procedura per sistemi Unix-like (Linux, MacOS, ...)
+
+\paragraph{Per compilare}
+\begin{verbatim}
+	$ ./gradlew build
+\end{verbatim}
+
+Il risultato sara' nella cartella \texttt{app/build/}
+
+\paragraph{Per creare i files \texttt{jar}}
+\begin{verbatim}
+	$ ./gradlew clientJar
+	$ ./gradlew serverJar
+\end{verbatim}
+
+Il risultato sara' nella cartella \texttt{app/build/libs/}
+
+\medskip
+\subsubsection{Windows}
+Di seguito verra' descritta la procedura per sistemi Windows
+
+\paragraph{Per compilare}
+\begin{verbatim}
+	gradlew.bat build
+\end{verbatim}
+
+Il risultato sara' nella cartella \texttt{app\textbackslash build\textbackslash}
+
+\paragraph{Per creare i files \texttt{jar}}
+\begin{verbatim}
+	gradlew.bat clientJar
+	gradlew.bat serverJar
+\end{verbatim}
+
+Il risultato sara' nella cartella \texttt{app\textbackslash build\textbackslash libs\textbackslash}
+
+\bigskip
+\bigskip
+\hypertarget{manual}{}
+\subsection{Metodo manuale}
+
+\underline{\textbf{Non raccomandato}}
+
+\subsubsection{Unix}
+Di seguito verra' descritta la procedura per sistemi Unix-like (Linux, MacOS, ...)
+
+\paragraph{Per compilare}
+\begin{verbatim}
+	$ javac -cp lib/gson-2.10.1.jar:./app/src/main/java: -d ./build \ 
+	    app/src/main/java/edu/riccardomori/wordle/server/ServerMain.java
+	$ javac -cp lib/gson-2.10.1.jar:./app/src/main/java: -d ./build \
+	    app/src/main/java/edu/riccardomori/wordle/client/ClientMain.java
+\end{verbatim}
+
+Il risultato sara' nella cartella \texttt{app/build/}
+
+\medskip
+\subsubsection{Windows}
+Di seguito verra' descritta la procedura per sistemi Windows
+
+\paragraph{Per compilare}
+\begin{verbatim}
+	javac.exe -cp lib\gson-2.10.1.jar;.\app\src\main\java; -d .\build \ 
+	app\src\main\java\edu\riccardomori\wordle\server\ServerMain.java
+	javac.exe -cp lib\gson-2.10.1.jar:.\app\src\main\java: -d .\build \
+	app\src\main\java\edu\riccardomori\wordle\client\ClientMain.java
+\end{verbatim}
+
+Il risultato sara' nella cartella \texttt{app\textbackslash build\textbackslash}
+
+\bigskip
+\subsection{Esecuzione}
+
+Per eseguire l'applicazione e' \underline{consigliato} usare i file \texttt{jar} precedentemente compilati nel seguente modo:
+\begin{verbatim}
+	$ java -jar client.jar
+	$ java -jar server.jar
+\end{verbatim}
+
+Altrimenti e' possibile lanciare l'applicazione manualmente nel seguente modo:
+
+\paragraph{Unix:}
+\begin{verbatim}
+	$ java -cp lib/gson-2.10.1.jar:./build/ \
+	     edu.riccardomori.wordle.client.ClientMain
+	$ java -cp lib/gson-2.10.1.jar:./build/ \
+	     edu.riccardomori.wordle.server.ServerMain
+\end{verbatim}
+
+
+\paragraph{Windows:}
+\begin{verbatim}
+	java.exe -cp lib\gson-2.10.1.jar;.\build edu.riccardomori.wordle.client.ClientMain
+	java.exe -cp lib\gson-2.10.1.jar;.\build edu.riccardomori.wordle.server.ServerMain
+\end{verbatim}
