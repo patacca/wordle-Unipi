@@ -1,0 +1,11 @@
+edu.riccardomori.wordle.client
+edu.riccardomori.wordle.client.backend
+edu.riccardomori.wordle.client.backend.exceptions
+edu.riccardomori.wordle.client.frontend
+edu.riccardomori.wordle.client.frontend.CLI
+edu.riccardomori.wordle.protocol
+edu.riccardomori.wordle.rmi
+edu.riccardomori.wordle.rmi.exceptions
+edu.riccardomori.wordle.server
+edu.riccardomori.wordle.server.logging
+edu.riccardomori.wordle.utils
