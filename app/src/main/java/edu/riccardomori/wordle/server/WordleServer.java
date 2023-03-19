@@ -388,14 +388,12 @@ public final class WordleServer implements serverRMI {
             throw new PasswordIllegalException("password not valid");
         }
 
-        synchronized (this.users) {
-            // Check if username exists
-            if (this.users.containsKey(username))
-                return RMIStatus.USER_TAKEN;
+        // Add the user
+        User prevValue = this.users.putIfAbsent(password, new User(username, password));
 
-            // Add the user
-            this.users.put(username, new User(username, password));
-        }
+        // Check if username already exists
+        if (prevValue != null)
+            return RMIStatus.USER_TAKEN;
 
         return RMIStatus.SUCCESS;
     }
