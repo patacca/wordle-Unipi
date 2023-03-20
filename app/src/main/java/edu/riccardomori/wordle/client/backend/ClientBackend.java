@@ -12,6 +12,7 @@ import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
+import java.rmi.server.ExportException;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
 import java.util.List;
@@ -35,9 +36,8 @@ import edu.riccardomori.wordle.rmi.serverRMI;
 import edu.riccardomori.wordle.utils.Pair;
 
 /**
- * Client backend that handles all the communication with the server through the TCP socket.
- * It also manages the subscription to the remote callback for the notifications about the
- * leadeboard
+ * Client backend that handles all the communication with the server through the TCP socket. It also
+ * manages the subscription to the remote callback for the notifications about the leadeboard
  */
 public class ClientBackend {
     private final int socketTimeout = 10000; // Timeout for reading on the socket
@@ -139,8 +139,11 @@ public class ClientBackend {
         try {
             Registry registry = LocateRegistry.getRegistry(this.serverHost, this.rmiPort);
             serverRMI service = (serverRMI) registry.lookup(RMIConstants.SERVER_NAME);
-            if (this.clientStub == null)
-                this.clientStub = (clientRMI) UnicastRemoteObject.exportObject(client, 0);
+            try {
+                if (this.clientStub == null)
+                    this.clientStub = (clientRMI) UnicastRemoteObject.exportObject(client, 0);
+            } catch (ExportException e) { // Do nothing
+            }
             service.subscribe(this.clientStub);
         } catch (NotBoundException | RemoteException e) {
             throw new GenericError();

@@ -288,6 +288,7 @@ public class ClientCLI implements ClientFrontend, clientRMI {
             try {
                 this.backend.unsubscribe();
             } catch (Exception e) {
+                e.printStackTrace();
             }
 
             // Stop the notification listener
