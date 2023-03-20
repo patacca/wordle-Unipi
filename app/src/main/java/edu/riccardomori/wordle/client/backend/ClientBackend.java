@@ -67,10 +67,21 @@ public class ClientBackend {
         }
     }
 
-    public ClientBackend(String host, int serverPort, int rmiPort) {
+    /**
+     * @param host Server hostname
+     * @param serverPort Server port
+     * @param rmiPort RMI server port
+     * @param client The {@code clientRMI} object that is sent to server
+     */
+    public ClientBackend(String host, int serverPort, int rmiPort, clientRMI client) {
         this.serverHost = host;
         this.serverPort = serverPort;
         this.rmiPort = rmiPort;
+        try {
+            this.clientStub = (clientRMI) UnicastRemoteObject.exportObject(client, 0);
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
     }
 
     /**
@@ -132,18 +143,12 @@ public class ClientBackend {
     /**
      * Subscribe to the server sending the {@code clientRMI} object for the callback
      * 
-     * @param client The {@code clientRMI} object that is sent to server
      * @throws GenericError
      */
-    public void subscribe(clientRMI client) throws GenericError {
+    public void subscribe() throws GenericError {
         try {
             Registry registry = LocateRegistry.getRegistry(this.serverHost, this.rmiPort);
             serverRMI service = (serverRMI) registry.lookup(RMIConstants.SERVER_NAME);
-            try {
-                if (this.clientStub == null)
-                    this.clientStub = (clientRMI) UnicastRemoteObject.exportObject(client, 0);
-            } catch (ExportException e) { // Do nothing
-            }
             service.subscribe(this.clientStub);
         } catch (NotBoundException | RemoteException e) {
             throw new GenericError();
@@ -160,7 +165,6 @@ public class ClientBackend {
             Registry registry = LocateRegistry.getRegistry(this.serverHost, this.rmiPort);
             serverRMI service = (serverRMI) registry.lookup(RMIConstants.SERVER_NAME);
             service.cancelSubscription(this.clientStub);
-            this.clientStub = null; // Free resources
         } catch (NotBoundException | RemoteException e) {
             throw new GenericError();
         }

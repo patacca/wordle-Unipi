@@ -40,7 +40,7 @@ public class ClientCLI implements ClientFrontend, clientRMI {
 
     public ClientCLI(String host, int serverPort, int rmiPort, String multicastAddress,
             int multicastPort) {
-        this.backend = new ClientBackend(host, serverPort, rmiPort);
+        this.backend = new ClientBackend(host, serverPort, rmiPort, this);
         this.notificationListener = new NotificationListener(multicastAddress, multicastPort);
         this.serverHost = host;
     }
@@ -250,7 +250,7 @@ public class ClientCLI implements ClientFrontend, clientRMI {
 
             // Subscribe to the leaderboard updates
             try {
-                this.backend.subscribe(this);
+                this.backend.subscribe();
             } catch (GenericError e) {
                 this.out.println("Cannot subscribe to the leaderboard updates");
             }
