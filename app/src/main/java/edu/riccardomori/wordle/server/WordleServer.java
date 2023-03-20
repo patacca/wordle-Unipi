@@ -403,7 +403,7 @@ public final class WordleServer implements serverRMI {
     @Override
     public void subscribe(clientRMI client) throws RemoteException {
         synchronized (this.subscribers) {
-            if (this.subscribers.contains(client))
+            if (this.subscribers.contains(client) || client == null)
                 return;
 
             this.logger.finer("New subscription");
