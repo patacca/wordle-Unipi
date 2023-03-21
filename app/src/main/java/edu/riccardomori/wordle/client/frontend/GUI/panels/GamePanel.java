@@ -46,7 +46,3 @@ public class GamePanel extends JPanel {
         this.setFocusable(true);
     }
 }
-
-// TODO
-// menu > top leaderboard > show shared games
-// registration
