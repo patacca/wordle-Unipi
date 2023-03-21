@@ -140,6 +140,8 @@ public class NotificationListener {
      * Stop listening
      */
     public void stop() {
+        if (this.daemonListener == null)
+            return;
         this.daemonListener.interrupt();
     }
 
