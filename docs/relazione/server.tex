@@ -5,7 +5,7 @@
 \begin{center}
 	\begin{figure}[t]
 		\makebox[\textwidth]{\includegraphics[width=0.7\paperwidth]{img/server_arch.pdf}}
-		\caption{Rappresentazione dell'architettura del server. La linea tratteggiata blu indica che il riferimento e' opzionale (potrebbe non essere presente). Si noti che esiste una dipendenza circolare tra \textbf{WordleServer} e \textbf{ClientSession}, sarebbe stato possibile evitarla rendendo \textbf{ClientSession} una classe \texttt{private static} di \textbf{WordleServer} ma si avrebbe perso in chiarezza.}
+		\caption{Rappresentazione dell'architettura del server. La linea tratteggiata blu indica che il riferimento e' opzionale (potrebbe non essere presente). Si noti che esiste una dipendenza circolare tra \textbf{WordleServer} e \textbf{ClientSession}: sarebbe stato possibile evitarla rendendo \textbf{ClientSession} una classe \texttt{private static} di \textbf{WordleServer}, ma si perderebbe in chiarezza.}
 		\label{fig:server_arch}
 	\end{figure}
 \end{center}
@@ -60,7 +60,7 @@ Tuttavia \textbf{WordleServer} non e' direttamente responsabile della logica del
 \begin{center}
 	\begin{figure}[t!]
 		\makebox[\textwidth]{\includegraphics[width=0.6\paperwidth]{img/client_asf_v3.pdf}}
-		\caption{A sinistra: descrizione dell'automa a stati finiti che gestisce l'interazione di un client col server (lo stato iniziale e' quello cerchiato). A destra: elenco dei comandi validi in ogni stato (questi comandi non cambiano lo stato corrente dell'automa).}
+		\caption{A sinistra: descrizione dell'automa a stati finiti che gestisce l'interazione di un client con il server (lo stato iniziale e' quello cerchiato). A destra: elenco dei comandi validi in ogni stato (questi comandi non cambiano lo stato corrente dell'automa).}
 		\label{fig:clientsession_asf}
 	\end{figure}
 \end{center}
@@ -69,7 +69,7 @@ Tuttavia \textbf{WordleServer} non e' direttamente responsabile della logica del
 
 Si e' scelto di gestire le connessioni TCP con dei socket I/O non bloccanti (\emph{Java NIO}) piuttosto che avere un pool di thread in cui ogni thread e' responsabile di un solo client.
 
-Questa soluzione ci permette una migliore scalabilita' col numero di client, infatti un elevato numero di client che effettuano tuttavia poche operazioni causerebbe un enorme overhead se usassimo un thread ciascuno. In questo modo siamo limitati da un solo thread che gestisce le connessioni con dei dati pronti a essere letti o scritti.
+Questa soluzione ci permette una migliore scalabilita' con il numero di client, infatti un elevato numero di client che effettuano, tuttavia, poche operazioni causerebbe un enorme overhead se usassimo un thread ciascuno. In questo modo siamo limitati da un solo thread che gestisce le connessioni con dei dati pronti a essere letti o scritti.
 
 In realta' la limitazione del thread singolo potrebbe essere rimossa qualora si sentisse il bisogno\footnote{Questa soluzione non e' stata adottata poiche' un tale livello di efficienza esula dagli obiettivi di questo progetto e l'implementazione risulta particolarmente insidiosa, tuttavia il resto del codice e' gia' stato predisposto per supportare una gestione parallela dei client} di migliorare ulteriormente l'efficienza sfruttando il parallelismo hardware (piu' core/CPU). In tal caso basterebbe delegare l'esecuzione di ciascun \textbf{ClientSession} a un pool di thread introducendo delle misure di sincronizzazione per evitare di elaborare due volte lo stesso messaggio.
 
@@ -82,7 +82,7 @@ La classifica degli utenti e' gestita dalla classe \textbf{Leaderboard}. Interna
 \end{itemize}
 In questo modo sapere la posizione in classifica di un utente richiede $O(n)$ tempo mentre l'aggiunta, la rimozione e la modifica di una coppia (utente, punteggio) richiede $O(\log{n})$ tempo.
 
-Vale la pena notare che usare un \textbf{Order Statistic Tree} al posto del \textbf{BST} comporterebbe un miglioramento della complessita' dell'operazione di \emph{rank}, ovvero sapere la posizione in classifica di un utente, che diventerebbe quindi $O(\log{n})$. Siccome l'implementazione di un \textbf{OST} non e' presente nella standard library di Java questa soluzione non e' stata utilizzata.
+Vale la pena notare che usare un \textbf{Order Statistic Tree} al posto del \textbf{BST} comporterebbe un miglioramento della complessita' dell'operazione di \emph{rank}, ovvero sapere la posizione in classifica di un utente, che diventerebbe quindi $O(\log{n})$. Siccome l'implementazione di un \textbf{OST} non e' presente nella standard library di Java, questa soluzione non e' stata utilizzata.
 
 Praticamente l'implementazione non rispecchia totalmente la struttura definita sopra ma comporta alcune piccole modifiche che non cambiano la complessita' del problema:
 \begin{itemize}
@@ -93,26 +93,26 @@ Per mantenere sincronizzate entrambe le strutture dati e' necessario che tutti i
 
 \subsection{Traduzione della secret word}
 
-La traduzione della \emph{secret word} (gestita dalla classe \textbf{TranslationServer}) in italiano e' una procedura lenta che richiede di eseguire una richiesta HTTP e siccome si e' deciso di non utilizzare un thread pool per la gestione concorrente dei client l'intero server si blocca in attesa della risposta dal web server.
+La traduzione della \emph{secret word} (gestita dalla classe \textbf{TranslationServer}) in italiano e' una procedura lenta che richiede di eseguire una richiesta HTTP e dal momento che si e' deciso di non utilizzare un thread pool per la gestione concorrente dei client, l'intero server si blocca in attesa della risposta dal web server.
 
 Per mitigare questo problema internamente viene usata una cache \textbf{LRU} (\emph{Least Recently Used}) che contiene la traduzione delle secret word. L'implementazione della cache \textbf{LRU} e' basata sulla \textbf{LinkedHashMap} offerta dalla standard library.
 
 \subsection{Gestione della concorrenza}
 
-Come precedentemente anticipato non ci sono molti thread che lavorano in parallelo. Tuttavia alcune componenti sono eseguite in un thread separato, in particolare la lista dei thread e':
+Come precedentemente anticipato non ci sono molti thread che lavorano in parallelo. Tuttavia, alcune componenti sono eseguite in un thread separato, in particolare la lista dei thread e':
 \begin{itemize}
 	\item Il main thread
 	\item Flush scheduler: viene eseguito a intervalli regolari ed esegue la sincronizzazione con il file di salvataggio del server
 	\item Thread per la generazione di una nuova secret word. Anche questo viene eseguito a intervalli regolari
 	\item Shutdown hook: thread speciale che viene eseguito nel momento in cui il server inizia la fase di terminazione. Esegue un sync sul file di salvataggio.
 	\item Share game: il thread si occupa di condividere una partita nel gruppo di multicast. Essendo questa di per se' una attivita' asincrona puo' essere eseguita tranquillamente da un thread separato
-	\item Notifica ai subscribers. Anche questa attivita' puo' essere eseguita parallelamente siccome non viene generata direttamente da un client
+	\item Notifica ai subscribers. Anche questa attivita' puo' essere eseguita parallelamente dal momento che non viene generata direttamente da un client
 	\item RMI threads: I metodi remoti disponibili possono generare molteplici thread. Il threadpool in questo caso e' gestito dalla \emph{JVM}
 \end{itemize}
 
 E' quindi necessario fare in modo che non si presentino situazioni di deadlock ne' altri problemi.
 
-La maggior parte di questi thread opera su strutture dati dedicate o su tipi di dato primitivi (l'assegnamento in tal caso e' atomico), quindi le misure per la prevenzione di problemi dovuti all'accesso concorrente alle risorse sono molto semplici o addirittura assenti.
+La maggior parte di questi thread opera su strutture dati dedicate o su tipi di dato primitivi (l'assegnamento in tal caso e' atomico), quindi le misure per la prevenzione di problemi dovuti all'accesso concorrente alle risorse sono molto semplici o alle volte assenti.
 
 L'unica struttura dati che merita particolare attenzione e' la \textbf{map} \{\emph{username} : \emph{User}\} che associa a ogni \emph{username} il relativo oggetto di tipo \emph{User} che rappresenta l'utente. Tale struttura e' particolarmente delicata per i seguenti motivi:
 \begin{enumerate}
@@ -122,11 +122,16 @@ L'unica struttura dati che merita particolare attenzione e' la \textbf{map} \{\e
 	\item Ogni istanza di \textbf{ClientSession} puo' operare sul relativo oggetto \textbf{User} ma non opera direttamente sulla \textbf{map} \{\emph{username} : \emph{User}\}
 \end{enumerate}
 
-Per risolvere questi problemi e mantenere comunque un alto livello di parallelismo si e' deciso di utilizzare una \textbf{ConcurrentHashMap} che, unita alle proprieta' che gli utenti non si possono eliminare e la password non si puo' cambiare, ci permette di risolvere i punti 1-2.
+Per risolvere i punti 1-2 e mantenere comunque un alto livello di parallelismo si e' deciso di utilizzare una \textbf{ConcurrentHashMap}.
+Ricordiamo infatti che valgono le seguenti proprieta':
+\begin{itemize}
+	\item Un utente, una volta registrato non puo' essere rimosso
+	\item La password di un utente e' \emph{immutable}
+\end{itemize}
 
 Per quanto riguarda il punto 4 si e' deciso di imporre un'altra proprieta':
 \begin{quote}
-	 In ogni istante successivo alla inizializzazione del server \underline{solo un} oggetto di tipo \textbf{ClientSession} puo' operare su un determinato oggetto \textbf{User}
+	 In ogni istante successivo alla inizializzazione del server \underline{solo un oggetto} di tipo \textbf{ClientSession} puo' operare su un determinato oggetto \textbf{User}
 \end{quote}
 
 Infine il punto 3 si risolve imponendo che la classe \textbf{User} sia serializzabile previa cattura del lock tramite \textbf{synchronized}. Questo significa che le operazioni di modifica su \textbf{User} sono tutte atomiche e lasciano l'oggetto in uno stato corretto.

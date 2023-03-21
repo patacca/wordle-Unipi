@@ -57,7 +57,7 @@ La struttura del frontend e' la seguente:
 }
 \bigskip
 
-Essendo che il client deve implementare l'interfaccia \textbf{clientRMI} in cui vengono specificati i metodi remoti che possono essere invocati dal server (che rappresenta una linea diretta di comunicazione col server), e' chiaro che il frontend dovra' implementare tali metodi, senza poter demandare al backend questa responsabilita'.
+Dato che il client deve implementare l'interfaccia \textbf{clientRMI} in cui vengono specificati i metodi remoti che possono essere invocati dal server (che rappresenta una linea diretta di comunicazione col server), e' chiaro che il frontend dovra' implementare tali metodi, senza poter demandare al backend questa responsabilita'.
 
 Fortunatamente c'e' solo un metodo (\textbf{updateLeaderboard}) invocabile da remoto ed e' di facile implementazione. Cio' non causa problemi di concorrenza.
 
