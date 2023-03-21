@@ -11,15 +11,10 @@ import edu.riccardomori.wordle.client.frontend.GUI.ViewManager;
 import edu.riccardomori.wordle.client.frontend.GUI.utils.Utils;
 
 public class GamePanel extends JPanel {
-    private ClientBackend backend;
-    private ClientSession session;
     private WordleGrid wordleGrid;
 
     public GamePanel(ViewManager manager, ClientBackend backend, ClientSession session) {
         super();
-
-        this.backend = backend;
-        this.session = session;
 
         this.setBorder(BorderFactory.createEmptyBorder(10, 30, 10, 30));
         this.setLayout(new BorderLayout(0, 10));
