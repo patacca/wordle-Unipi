@@ -152,6 +152,9 @@ public class NotificationListener {
      */
     // @formatter:on
     public Map<String, Map<Long, GameShared>> getAllData() {
+        if (this.gamesShared == null)
+            return null;
+
         Map<String, Map<Long, GameShared>> games;
         synchronized (this.gamesShared) {
             games = this.gamesShared;
