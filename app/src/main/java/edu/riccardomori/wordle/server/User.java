@@ -88,6 +88,8 @@ public class User {
     }
 
     public GameDescriptor getLastGame() {
+        if (this.lastGame == null)
+            return null;
         return this.lastGame.copy();
     }
 
