@@ -391,7 +391,7 @@ public final class WordleServer implements serverRMI {
         }
 
         // Add the user
-        User prevValue = this.users.putIfAbsent(password, new User(username, password));
+        User prevValue = this.users.putIfAbsent(username, new User(username, password));
 
         // Check if username already exists
         if (prevValue != null)
