@@ -7,8 +7,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Descriptor of a user session.
- * This class is not thread safe.
+ * Descriptor of a user session. This class is not thread safe.
  */
 public class UserSession {
     public boolean isActive = true; // Tells if the session is active or if it has been closed
@@ -19,6 +18,14 @@ public class UserSession {
     public List<List<Integer>> partialHints = new ArrayList<>();
 
     public UserSession() {}
+
+    /**
+     * Resets the hints
+     */
+    public void resetHints() {
+        this.correctHints = new ArrayList<>();
+        this.partialHints = new ArrayList<>();
+    }
 
     /**
      * Generate the correct and partial hints and append them in the appropriate class fields

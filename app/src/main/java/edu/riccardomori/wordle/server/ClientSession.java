@@ -13,9 +13,8 @@ import edu.riccardomori.wordle.protocol.MessageStatus;
 import edu.riccardomori.wordle.utils.Pair;
 
 /**
- * Class that handles a client session. The client is solely identified by the tcp session.
- * During a session, the same client can operate different users.
- * This class is not thread-safe.
+ * Class that handles a client session. The client is solely identified by the tcp session. During a
+ * session, the same client can operate different users. This class is not thread-safe.
  */
 public class ClientSession {
     private int interestOps; // The interest set of operations as a bitmask
@@ -221,6 +220,7 @@ public class ClientSession {
         session.secretWord = secretWord;
         session.gameId = gameId;
         session.triesLeft = WordleServer.WORD_TRIES;
+        session.resetHints();
 
         // Prepare the success message
         ByteBuffer msg = ByteBuffer.allocate(Integer.BYTES * 2);
