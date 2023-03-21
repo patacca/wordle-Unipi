@@ -501,9 +501,15 @@ public class ClientCLI implements ClientFrontend, clientRMI {
      * Show all the games shared with us
      */
     private void showShared() {
-        this.out.println("These are all the games that have been shared\n");
 
         Map<String, Map<Long, GameShared>> games = this.notificationListener.getAllData();
+
+        if (games == null) {
+            this.out.println("There are no games");
+            return;
+        }
+
+        this.out.println("These are all the games that have been shared\n");
         for (String username : games.keySet()) { // For every user
             // Ignore our own shared games
             if (this.session.getUsername().equals(username))
