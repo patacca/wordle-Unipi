@@ -29,6 +29,8 @@ public class ClientMain {
         }
 
         // Load frontend
+        // ClientFrontend client = new ClientGUI(ClientMain.serverHost, ClientMain.serverPort,
+        //         ClientMain.rmiPort, ClientMain.multicastAddress, ClientMain.multicastPort);
         ClientFrontend client = new ClientCLI(ClientMain.serverHost, ClientMain.serverPort,
                 ClientMain.rmiPort, ClientMain.multicastAddress, ClientMain.multicastPort);
 
